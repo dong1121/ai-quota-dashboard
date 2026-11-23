@@ -1,0 +1,76 @@
+name: Build & Publish Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-extension:
+    name: Verify & Pack Chrome Extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm test
+      - run: node scripts/pack-extension-zip.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chrome-extension-zip
+          path: release/AI-Quota-Chrome-Extension-*.zip
+
+  release-desktop:
+    name: Build Desktop (${{ matrix.os }})
+    needs: verify-and-extension
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm run generate-icons --workspace=@ai-quota/desktop
+
+      - name: Build & Publish with electron-builder
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run package --workspace=@ai-quota/desktop -- --publish always
+
+  attach-extension:
+    name: Attach Chrome Extension to GitHub Release
+    needs: [verify-and-extension, release-desktop]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: chrome-extension-zip
+          path: release
+
+      - name: Upload Extension ZIP to Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release upload "$TAG" release/AI-Quota-Chrome-Extension-*.zip --clobber --repo "${{ github.repository }}"
