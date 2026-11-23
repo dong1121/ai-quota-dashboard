@@ -55,6 +55,7 @@ jobs:
       - name: Build & Publish with electron-builder
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
         run: npm run package --workspace=@ai-quota/desktop -- --publish always
 
   attach-extension:

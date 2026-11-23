@@ -1,5 +1,6 @@
 appId: com.dong1121.ai-quota-dashboard
 productName: AI Quota Dashboard
+electronVersion: "35.7.5"
 copyright: Copyright © 2026 dong1121
 directories:
   output: ../../release
@@ -14,6 +15,7 @@ publish:
   - provider: github
     owner: dong1121
     repo: ai-quota-dashboard
+    releaseType: release
 win:
   icon: build/icon.ico
   target:
