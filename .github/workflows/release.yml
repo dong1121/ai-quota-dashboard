@@ -29,7 +29,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: chrome-extension-zip
+          name: release-extension
           path: release/AI-Quota-Chrome-Extension-*.zip
 
   release-desktop:
@@ -52,26 +52,47 @@ jobs:
       - run: npm run build
       - run: npm run generate-icons --workspace=@ai-quota/desktop
 
-      - name: Build & Publish with electron-builder
+      - name: Package Desktop Installer with electron-builder
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
-        run: npm run package --workspace=@ai-quota/desktop -- --publish always
+        run: npm run package --workspace=@ai-quota/desktop -- --publish never
 
-  attach-extension:
-    name: Attach Chrome Extension to GitHub Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.yml
+            release/*.blockmap
+
+  publish-release:
+    name: Publish GitHub Release
     needs: [verify-and-extension, release-desktop]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: chrome-extension-zip
-          path: release
+          path: artifacts
 
-      - name: Upload Extension ZIP to Release
+      - name: Collect Release Assets
+        run: |
+          mkdir -p dist-release
+          find artifacts -type f -exec cp -v {} dist-release/ \;
+          ls -lh dist-release
+
+      - name: Create or Update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          gh release upload "$TAG" release/AI-Quota-Chrome-Extension-*.zip --clobber --repo "${{ github.repository }}"
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist-release/* --clobber --repo "${{ github.repository }}"
+          else
+            gh release create "$TAG" dist-release/* \
+              --repo "${{ github.repository }}" \
+              --title "AI 額度儀表板 $TAG" \
+              --generate-notes
+          fi

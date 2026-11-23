@@ -1,6 +1,6 @@
 {
   "name": "ai-quota-dashboard",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "Local-first multi-account AI quota dashboard for Windows, macOS, and Chrome",
   "workspaces": [

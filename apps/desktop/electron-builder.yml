@@ -36,6 +36,8 @@ portable:
 mac:
   icon: build/icon.png
   category: public.app-category.productivity
+  identity: null
+  notarize: false
   target:
     - target: dmg
       arch:
@@ -46,3 +48,5 @@ mac:
         - arm64
         - x64
   artifactName: AI-Quota-Dashboard-${version}-mac-${arch}.${ext}
+dmg:
+  sign: false
