@@ -9,6 +9,9 @@ files:
   - dist/**/*
   - dist-electron/**/*
   - package.json
+extraResources:
+  - from: ../extension/dist
+    to: chrome-extension
 asarUnpack:
   - "**/node_modules/sql.js/dist/sql-wasm.wasm"
 publish:

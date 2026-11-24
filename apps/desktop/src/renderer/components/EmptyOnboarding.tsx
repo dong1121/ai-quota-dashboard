@@ -5,12 +5,14 @@ import type { AppConfig } from '@ai-quota/shared';
 interface EmptyOnboardingProps {
   config: AppConfig | null;
   onCopyToken: (token: string) => void;
+  onOpenExtensionFolder: () => void;
   onRescanCli: () => void;
 }
 
 export const EmptyOnboarding: React.FC<EmptyOnboardingProps> = ({
   config,
   onCopyToken,
+  onOpenExtensionFolder,
   onRescanCli,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -58,11 +60,19 @@ export const EmptyOnboarding: React.FC<EmptyOnboardingProps> = ({
 
       <button
         type="button"
+        onClick={onOpenExtensionFolder}
+        className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-sky-500/25 hover:bg-sky-500/35 border border-sky-400/30 text-[0.8rem] font-medium text-sky-100 transition-colors cursor-pointer"
+      >
+        <span>📂 開啟內建 Chrome / Edge 擴充套件資料夾</span>
+      </button>
+
+      <button
+        type="button"
         onClick={onRescanCli}
-        className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-indigo-500/25 hover:bg-indigo-500/35 border border-indigo-400/30 text-[0.82rem] font-medium text-indigo-100 transition-colors cursor-pointer"
+        className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400/25 text-[0.8rem] font-medium text-indigo-100 transition-colors cursor-pointer"
       >
         <RefreshCw className="w-3.5 h-3.5" />
-        <span>立即掃描本機 Gemini / Antigravity CLI</span>
+        <span>立即掃描本機 Antigravity 紀錄</span>
       </button>
     </div>
   );

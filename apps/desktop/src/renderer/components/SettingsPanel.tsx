@@ -42,6 +42,7 @@ interface SettingsPanelProps {
   onCheckUpdates: () => Promise<void>;
   onDownloadUpdate: () => Promise<void>;
   onInstallUpdate: () => Promise<void>;
+  onOpenExtensionFolder: () => Promise<{ ok: boolean; path: string }>;
   onSetMode: (mode: DisplayMode) => Promise<void>;
   onSetAlwaysOnTop: (enabled: boolean) => Promise<void>;
   onRestoreAccount: (accountId: string) => void;
@@ -72,6 +73,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onCheckUpdates,
   onDownloadUpdate,
   onInstallUpdate,
+  onOpenExtensionFolder,
   onSetMode,
   onSetAlwaysOnTop,
   onRestoreAccount,
@@ -449,7 +451,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         <div className="space-y-2 text-[0.78rem]">
           <label className="flex items-center justify-between gap-2 text-slate-200 cursor-pointer">
             <div>
-              <span>🚀 監看 Antigravity CLI (AGY)</span>
+              <span>🚀 監看 Antigravity (CLI / 桌面應用程式)</span>
               <span className="block text-[0.68rem] text-slate-400">
                 {cliStatus?.antigravityCliFound ? '● 已偵測本機紀錄目錄' : '○ 未偵測目錄'}
               </span>
@@ -547,6 +549,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </button>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => void onOpenExtensionFolder()}
+          className="w-full py-1.5 px-2.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/32 border border-indigo-400/30 text-[0.76rem] text-indigo-100 font-medium cursor-pointer transition-colors"
+        >
+          📂 開啟內建 Chrome / Edge 擴充套件資料夾（自動跟隨更新）
+        </button>
       </section>
 
       {/* Window Mode & Shortcut */}

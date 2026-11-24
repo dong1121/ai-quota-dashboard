@@ -18,6 +18,8 @@ export interface ExtensionRuntimeState {
   settings: ExtensionSettings;
   connected: boolean;
   lastError: string | null;
+  extensionVersion?: string;
+  newerDesktopExtensionVersion?: string | null;
   services: Partial<Record<ProviderType, ServiceSyncRecord>>;
 }
 

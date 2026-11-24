@@ -45,6 +45,7 @@ export interface QuotaDesktopBridge {
   checkForUpdates: () => Promise<UpdateStateDTO>;
   downloadUpdate: () => Promise<UpdateStateDTO>;
   installUpdate: () => Promise<void>;
+  openExtensionFolder: () => Promise<{ ok: boolean; path: string }>;
 }
 
 const api: QuotaDesktopBridge = {
@@ -94,6 +95,7 @@ const api: QuotaDesktopBridge = {
   checkForUpdates: () => ipcRenderer.invoke('updater:check'),
   downloadUpdate: () => ipcRenderer.invoke('updater:download'),
   installUpdate: () => ipcRenderer.invoke('updater:install'),
+  openExtensionFolder: () => ipcRenderer.invoke('extension:open-folder'),
 };
 
 contextBridge.exposeInMainWorld('quotaApi', api);

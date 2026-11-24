@@ -179,6 +179,7 @@ export const App: React.FC = () => {
                 setUpdateState(st);
               }}
               onInstallUpdate={() => window.quotaApi.installUpdate()}
+              onOpenExtensionFolder={() => window.quotaApi.openExtensionFolder()}
               onSetMode={async (mode) => {
                 const next = await window.quotaApi.setMode(mode);
                 setConfig(next);
@@ -196,6 +197,7 @@ export const App: React.FC = () => {
             <EmptyOnboarding
               config={config}
               onCopyToken={(token) => void window.quotaApi.copyText(token)}
+              onOpenExtensionFolder={() => void window.quotaApi.openExtensionFolder()}
               onRescanCli={() => void handleRescanCli()}
             />
           ) : (

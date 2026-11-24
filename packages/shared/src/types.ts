@@ -273,11 +273,13 @@ export interface AppConfig {
 export interface HealthResponse {
   ok: boolean;
   version: string;
+  extensionVersion?: string;
   port: number;
 }
 
 export interface PairVerifyResponse {
   ok: boolean;
   version: string;
+  extensionVersion?: string;
   serverTime: string;
 }

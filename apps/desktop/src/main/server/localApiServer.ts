@@ -18,6 +18,7 @@ const MAX_BODY_BYTES = 256 * 1024;
 export interface LocalApiServerOptions {
   port: number;
   version: string;
+  getExtensionVersion?: () => string | null;
   getPairingToken: () => string;
   getWindowConfig: () => BucketWindowConfig;
   getCliStatus: () => CliWatcherStatus;
@@ -95,6 +96,11 @@ export class LocalApiServer {
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', `Content-Type, ${PAIRING_HEADER}`);
+    res.setHeader('Access-Control-Expose-Headers', 'X-Extension-Version');
+    const extVersion = this.opts.getExtensionVersion?.() ?? this.opts.version;
+    if (extVersion) {
+      res.setHeader('X-Extension-Version', extVersion);
+    }
 
     if (req.method === 'OPTIONS') {
       res.statusCode = 204;
@@ -110,6 +116,7 @@ export class LocalApiServer {
       const payload: HealthResponse = {
         ok: true,
         version: this.opts.version,
+        extensionVersion: extVersion,
         port: this.actualPort,
       };
       this.sendJson(res, 200, payload);
@@ -129,6 +136,7 @@ export class LocalApiServer {
         const payload: PairVerifyResponse = {
           ok: true,
           version: this.opts.version,
+          extensionVersion: extVersion,
           serverTime: new Date().toISOString(),
         };
         this.sendJson(res, 200, payload);

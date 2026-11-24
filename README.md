@@ -18,13 +18,14 @@
   - 下載對應晶片的 `.dmg`，將 App 拖進「應用程式（Applications）」。
   - 首次開啟若出現未簽章提示：在「應用程式」中對 App **按右鍵 → 打開**，或於「系統設定 → 隱私權與安全性」點「仍要打開」一次即可。
 
-### 步驟 2：安裝 Chrome / Edge 擴充套件（多設定檔可各自安裝）
-1. 下載 Release 頁面的 `AI-Quota-Chrome-Extension-v1.0.0.zip` 並解壓縮。
+### 步驟 2：載入內建 Chrome / Edge 擴充套件（免另外下載 ZIP，以後自動跟隨更新！）
+1. 打開桌面小工具右上角 **`[⚙️]`** 設定頁，點擊 **「📂 開啟內建 Chrome / Edge 擴充套件資料夾」**（會直接開啟自動同步目錄 `%APPDATA%\AIQuotaDashboard\chrome-extension`）。
 2. 在 Chrome 網址列輸入 `chrome://extensions`（若您是從 **Microsoft Edge** 安裝 Gemini 應用程式，請改開 `edge://extensions`），開啟「**開發人員模式**」。
-3. 點擊「**載入未封裝項目**」，選擇剛剛解壓縮出來的資料夾。
+3. 點擊「**載入未封裝項目**」，選擇剛剛開啟的那個 `chrome-extension` 資料夾（這輩子只需做這 1 次，未來桌面端自動更新時擴充套件也會自動無感重載升級！）。
 
-> 💡 **使用 Claude Cowork 或 Gemini 桌面應用程式的朋友必看**：
-> 只要在安裝了擴充套件的 Chrome（或 Edge）中**登入過一次 `claude.ai` 與 `gemini.google.com`**，之後就算平常都在獨立桌面 App 或手機版聊天，擴充套件也會每 3–5 分鐘自動於背景同步您的額度與新增對話！
+> 💡 **使用 Claude Cowork、Gemini 桌面應用程式或 Antigravity 桌面 App 的朋友必看**：
+> - **Antigravity (CLI / 桌面應用程式)**：開箱自動同時偵測 `~/.gemini/antigravity-cli` 與 `~/.gemini/antigravity`，免額外設定。
+> - **Claude Cowork / Gemini 桌面 App**：只要在安裝了擴充套件的 Chrome（或 Edge）中**登入過一次 `claude.ai` 與 `gemini.google.com`**，擴充套件就會每 3–5 分鐘於背景自動同步額度與新增對話！
 
 ### 步驟 3：輸入本機配對碼（只需一次）
 1. 打開桌面小工具右上角 **`[⚙️]`** 設定頁，複製專屬的 8 碼配對碼（例如 `K8M2-94Q1`）。

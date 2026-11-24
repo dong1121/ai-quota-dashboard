@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { DatabaseRepository } from '../db/repository.js';
 import { GeminiCliCollector } from '../collectors/geminiCliCollector.js';
 import { AntigravityCliCollector } from '../collectors/antigravityCliCollector.js';
+import { syncBundledExtension } from '../extensionSync.js';
 
 const tempDirs: string[] = [];
 
@@ -21,11 +22,14 @@ describe('Local CLI Collectors', () => {
 
     const mockGeminiDir = path.join(root, '.gemini');
     const mockAgyDir = path.join(mockGeminiDir, 'antigravity-cli');
+    const mockAgyAppDir = path.join(mockGeminiDir, 'antigravity');
     const chatsDir = path.join(mockGeminiDir, 'tmp', 'projhash123', 'chats');
     const agyLogDir = path.join(mockAgyDir, 'brain', 'conv-1', '.system_generated', 'logs');
+    const agyAppLogDir = path.join(mockAgyAppDir, 'brain', 'app-conv-1', '.system_generated', 'logs');
 
     fs.mkdirSync(chatsDir, { recursive: true });
     fs.mkdirSync(agyLogDir, { recursive: true });
+    fs.mkdirSync(agyAppLogDir, { recursive: true });
 
     // Mock ~/.gemini/google_accounts.json
     fs.writeFileSync(
@@ -80,12 +84,30 @@ describe('Local CLI Collectors', () => {
     ].join('\n') + '\n';
     fs.writeFileSync(path.join(agyLogDir, 'transcript.jsonl'), transcriptLines, 'utf-8');
 
+    // Mock Antigravity Desktop App transcript.jsonl under ~/.gemini/antigravity/
+    fs.writeFileSync(
+      path.join(agyAppLogDir, 'transcript.jsonl'),
+      JSON.stringify({
+        step_index: 1,
+        type: 'PLANNER_RESPONSE',
+        status: 'DONE',
+        created_at: nowIso,
+      }) + '\n',
+      'utf-8',
+    );
+
     const repo = await DatabaseRepository.create(path.join(root, 'quota.db'));
     const windowCfg = () => ({ geminiCliDailyLimit: 1000, antigravityCliDailyLimit: 500 });
 
     try {
       const gcli = new GeminiCliCollector(repo, windowCfg, mockGeminiDir);
-      const agy = new AntigravityCliCollector(repo, windowCfg, mockAgyDir, mockGeminiDir);
+      const agy = new AntigravityCliCollector(
+        repo,
+        windowCfg,
+        mockAgyDir,
+        mockGeminiDir,
+        mockAgyAppDir,
+      );
 
       const gRes1 = gcli.scanNow();
       expect(gRes1.insertedEvents).toBe(2);
@@ -94,7 +116,7 @@ describe('Local CLI Collectors', () => {
       expect(gRes2.insertedEvents).toBe(0);
 
       const aRes1 = agy.scanNow();
-      expect(aRes1.insertedEvents).toBe(2);
+      expect(aRes1.insertedEvents).toBe(3); // 2 from CLI + 1 from Desktop App
       // Append one more step to verify incremental byte-offset scan
       fs.appendFileSync(
         path.join(agyLogDir, 'transcript.jsonl'),
@@ -118,9 +140,28 @@ describe('Local CLI Collectors', () => {
 
       expect(cliBucket?.usedValue).toBe(2);
       expect(cliBucket?.tokensToday).toBe(1100);
-      expect(agyBucket?.usedValue).toBe(3);
+      expect(agyBucket?.usedValue).toBe(4);
     } finally {
       repo.close();
     }
+  });
+
+  it('syncs bundled extension files when version changes and skips when up-to-date', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-quota-extsync-test-'));
+    tempDirs.push(root);
+    const src = path.join(root, 'src');
+    const dst = path.join(root, 'dst');
+    fs.mkdirSync(src, { recursive: true });
+    fs.writeFileSync(path.join(src, 'manifest.json'), JSON.stringify({ version: '1.1.0' }));
+    fs.writeFileSync(path.join(src, 'background.js'), '// v1.1.0');
+
+    const first = syncBundledExtension(src, dst);
+    expect(first.synced).toBe(true);
+    expect(first.version).toBe('1.1.0');
+    expect(fs.existsSync(path.join(dst, 'background.js'))).toBe(true);
+
+    const second = syncBundledExtension(src, dst);
+    expect(second.synced).toBe(false);
+    expect(second.version).toBe('1.1.0');
   });
 });

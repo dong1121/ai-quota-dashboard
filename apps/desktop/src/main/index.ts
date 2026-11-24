@@ -1,4 +1,4 @@
-import { BrowserWindow, app, clipboard, dialog, ipcMain } from 'electron';
+import { BrowserWindow, app, clipboard, dialog, ipcMain, shell } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -21,9 +21,10 @@ import { GeminiCliCollector } from './collectors/geminiCliCollector.js';
 import { AntigravityCliCollector } from './collectors/antigravityCliCollector.js';
 import { NotificationEngine } from './notifications/notificationEngine.js';
 import { UpdateManager } from './updater/updateManager.js';
+import { resolveBundledExtensionSource, syncBundledExtension } from './extensionSync.js';
 import { WindowManager, resolvePreloadPath } from './windowManager.js';
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 
 // Required on Windows 10/11 so Electron native Toast notifications appear in Action Center
 if (process.platform === 'win32') {
@@ -52,6 +53,11 @@ async function bootstrap(): Promise<void> {
   const dataDir = getDataDir();
   const configStore = new ConfigStore(dataDir);
   const dbPath = path.join(dataDir, 'quota.db');
+
+  // Auto-sync bundled Chrome/Edge extension into fixed %APPDATA%/AIQuotaDashboard/chrome-extension
+  const extSourceDir = resolveBundledExtensionSource(app.isPackaged);
+  const extTargetDir = path.join(dataDir, 'chrome-extension');
+  const extSync = syncBundledExtension(extSourceDir, extTargetDir);
 
   repository = await DatabaseRepository.create(dbPath);
 
@@ -132,6 +138,7 @@ async function bootstrap(): Promise<void> {
   apiServer = new LocalApiServer({
     port: configStore.get().port,
     version: APP_VERSION,
+    getExtensionVersion: () => extSync.version ?? APP_VERSION,
     getPairingToken: () => configStore.get().pairingToken,
     getWindowConfig,
     getCliStatus,
@@ -395,6 +402,14 @@ async function bootstrap(): Promise<void> {
   ipcMain.handle('updater:install', () => {
     windowManager?.markQuitting();
     updateManager?.quitAndInstall();
+  });
+  ipcMain.handle('extension:open-folder', async () => {
+    const res = syncBundledExtension(extSourceDir, extTargetDir);
+    if (fs.existsSync(res.targetDir)) {
+      await shell.openPath(res.targetDir);
+      return { ok: true, path: res.targetDir };
+    }
+    return { ok: false, path: res.targetDir };
   });
 
   const devUrl = process.env.VITE_DEV_SERVER_URL;

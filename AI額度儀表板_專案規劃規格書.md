@@ -2,7 +2,7 @@
 
 > **文件用途**：本規格書記錄專案的核心需求、架構設計、實際資料模型、各階段開發進度與維護發佈規範，供後續開發與版本迭代直接銜接。  
 > **建立日期**：2026-11-20  
-> **最後更新**：2026-11-24（**v1.0.0 正式版** · 新增 Gemini XHR 攔截、背景同步支援桌面 App／Edge PWA、DOM 備援計數與 Microsoft Edge 相容）  
+> **最後更新**：2026-11-24（**v1.1.0 正式版** · 新增桌面端內嵌擴充套件自動無感重載更新、Antigravity 桌面應用程式＋CLI 雙路徑通吃）  
 > **目標平台**：Windows / macOS 桌面端 ＋ Google Chrome（多設定檔 Profile 環境）  
 > **GitHub 專案**：`dong1121/ai-quota-dashboard`（Public · 支援 GitHub Releases 自動更新與雙平台雲端打包）  
 > **隱私原則**：Local-First（全本機運作、不經第三方雲端伺服器、不儲存帳號密碼、設定備份不含本機配對碼）
@@ -29,7 +29,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Claude Cowork** | Claude 桌面版 / 網頁 / 手機 | 5 小時滾動額度（Session）＋每週額度（Weekly）；各端共用同一額度池 | `claude.ai` 分頁同源直接查詢 `/api/organizations/{orgId}/usage`（抗 Cloudflare），並由 Service Worker 每 3 分鐘背景輪詢；同步寫入 `quota_snapshots` 歷史快照以計算月活躍天數與週均消耗率 | ⭐⭐⭐⭐⭐ 精準百分比＋重置倒數 |
 | **Gemini Pro 家庭版** | Chrome / Edge 多設定檔 ＋ Gemini 桌面應用程式 / PWA ＋ 手機版 | 家庭群組內每個成員帳號額度各自獨立，但帳單共計一份方案費 | `v1.0.0` 四層追蹤：(1) MAIN World 同時攔截 `fetch`＋`XMLHttpRequest`（Google `XhrIo` `StreamGenerate`）與 `WIZ_global_data.oPEP7c` 精準歸戶；(2) Service Worker 每 5 分鐘背景輪詢 `gemini.google.com/app` 自動補記獨立 App／手機新增對話（比照 Claude Cowork）；(3) DOM `user-query` 氣泡備援計數；(4) 支援直接載入 Microsoft Edge (`edge://extensions`) | ⭐⭐⭐⭐ 網頁／App／手機全通路追蹤 |
-| **Antigravity CLI (AGY)** | 本機終端機 | 獨立開發者工具紀錄 | **預設開啟**：增量讀取 `~/.gemini/antigravity-cli/brain/*/.system_generated/logs/transcript.jsonl`，以 `external_event_id` 冪等去重，自動依 Email 歸戶為 `🚀 AGY` 槽位 | ⭐⭐⭐⭐ 精準步驟統計 |
+| **Antigravity (CLI / 桌面應用程式)** | 本機終端機 ＋ Antigravity IDE / 桌面 App | 獨立開發者工具紀錄 | **預設開啟（`v1.1.0` 雙路徑通吃）**：同時監看 `~/.gemini/antigravity-cli`（CLI）與 `~/.gemini/antigravity`（桌面應用程式），支援 `transcript.jsonl` 增量解析與 `conversations/*.pb` 備援追蹤，自動依 Email 歸戶為 `🚀 AGY` 槽位 | ⭐⭐⭐⭐ 精準步驟統計 |
 | **標準 Gemini CLI（選用）** | 本機終端機 | 免費開發者額度池 | **預設關閉**（保持付費版使用者介面精簡；設定頁可一鍵開啟供免費版朋友使用）：讀取 `~/.gemini/google_accounts.json` 與 `tmp/**/chats/session-*.json`，統計次數與 Token | ⭐⭐⭐⭐ 精準次數與 Token |
 | **ChatGPT Plus** | Chrome 網頁版 ＋ 手機版 | 依模型區分的滾動時間窗（推理模型、主力對話、深度研究、圖片生成） | MAIN World 攔截 `/backend-api/conversation` 依 `model` 自動分類計數，讀取 `/api/auth/session` 取得帳號 Email，並攔截 `429` / `clears_in` / `resets_at` 精準對齊重置時間 | ⭐⭐⭐⭐ 滾動估算＋限流校準 |
 
@@ -248,6 +248,8 @@ CREATE TABLE notification_logs (
 - [x] macOS 跨平台適配（Retina PNG Menu Bar 圖示、正下方彈出定位、Dock 自動隱藏、免付費憑證打包 `identity: null` / `notarize: false` / `dmg.sign: false`）。
 - [x] GitHub Releases 自動檢查與下載更新機制（綁定 `dong1121/ai-quota-dashboard`）＋ `.github/workflows/release.yml` 雙平台原子發佈流程（`verify-and-extension` → `windows-latest` & `macos-latest` 各自 `--publish never` 打包並排除 `builder-debug.yml` → 單一 `publish-release` 統一上傳避免搶傳撞車）。
 - [x] 正式發佈 `v1.0.0`（修正 NSIS 無空白檔名 `AI-Quota-Dashboard-Setup-${version}.${ext}` 確保 `latest.yml` 與自動下載 100% 一致）。
+- [x] **內嵌擴充套件＋免費全自動無感更新（`v1.1.0`）**：`electron-builder` 透過 `extraResources` 將編譯好的擴充套件直接包進桌面安裝檔，啟動時自動同步至 `%APPDATA%\AIQuotaDashboard\chrome-extension\`（設定頁提供一鍵「📂 開啟內建擴充套件資料夾」）；擴充套件偵測到 `X-Extension-Version` 升級時自動呼叫 `chrome.runtime.reload()`（附單次防迴圈保護），免手動下載 ZIP 與覆蓋。
+- [x] **Antigravity 雙路徑監看（`v1.1.0`）**：同時監看 `~/.gemini/antigravity-cli`（CLI）與 `~/.gemini/antigravity`（桌面應用程式／IDE）。
 - [x] 完成 [README.md](README.md)（朋友端 3 分鐘安裝指南＋作者端 GitHub 上傳與發版手冊）。
 
 ### Phase 4：未來可選擴充方向（視實際使用回饋決定）
@@ -264,7 +266,7 @@ CREATE TABLE notification_logs (
 ```text
 1151120_AI額度儀表板/
 ├── .github/workflows/release.yml      # GitHub Actions 雙平台自動測試、打包與發佈流程
-├── package.json                       # Monorepo 根配置（v1.0.0）
+├── package.json                       # Monorepo 根配置（v1.1.0）
 ├── README.md                          # 朋友端 3 分鐘安裝指南 ＋ 作者端 GitHub 上傳與發版步驟
 ├── start-dashboard.bat                # 本機快速啟動已編譯桌面看板（純 ASCII + CRLF）
 ├── scripts/pack-extension-zip.mjs     # 打包 Chrome 擴充套件 ZIP（Windows 使用 tar.exe 避開中括號路徑問題）
@@ -276,7 +278,7 @@ CREATE TABLE notification_logs (
 │       ├── main/                      # config / db (sql.js) / server / collectors / notifications / updater / windowManager（7 tests）
 │       ├── preload/index.ts           # contextBridge 安全 IPC 介面
 │       └── renderer/                  # App（迷你看板）、AnalyticsWindow（獨立統計頁）、SettingsPanel、AccountCard、QuotaBar
-└── apps/extension/                    # Chrome / Edge MV3 擴充套件（v1.0.0），建置輸出至 apps/extension/dist/
+└── apps/extension/                    # Chrome / Edge MV3 擴充套件（v1.1.0），同步內嵌至桌面安裝檔 extraResources/chrome-extension
 ```
 
 ### 開發、打包防雷與發版速查備忘

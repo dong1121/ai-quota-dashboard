@@ -114,6 +114,14 @@ export const Popup: React.FC = () => {
         </span>
       </header>
 
+      {/* Notice if user loaded extension from an old manual folder instead of Desktop's auto-synced folder */}
+      {state?.newerDesktopExtensionVersion && (
+        <div className="rounded-lg bg-amber-500/15 border border-amber-400/35 px-2.5 py-2 text-[11px] text-amber-200 leading-snug">
+          桌面端已內建新版擴充套件 <strong>v{state.newerDesktopExtensionVersion}</strong>（目前 v
+          {state.extensionVersion}）。改載入桌面端設定頁的「📂 內建擴充套件資料夾」，以後就能全自動更新！
+        </div>
+      )}
+
       {/* Pairing Form */}
       <form
         onSubmit={(e) => void handleSave(e)}

@@ -1,5 +1,6 @@
 import { parseGeminiAppHtml, type QuotaSnapshotInput } from '@ai-quota/shared';
 import {
+  getNewerServerExtensionVersion,
   pushHeartbeat,
   pushSnapshot,
   pushUsageEvent,
@@ -409,6 +410,8 @@ chrome.runtime.onMessage.addListener(
             settings: nextSettings,
             connected: lastConnected,
             lastError,
+            extensionVersion: chrome.runtime.getManifest().version,
+            newerDesktopExtensionVersion: getNewerServerExtensionVersion(),
             services: await getSyncedServices(),
           };
           sendResponse(state);
@@ -428,6 +431,8 @@ chrome.runtime.onMessage.addListener(
             settings,
             connected: lastConnected,
             lastError,
+            extensionVersion: chrome.runtime.getManifest().version,
+            newerDesktopExtensionVersion: getNewerServerExtensionVersion(),
             services: await getSyncedServices(),
           };
           sendResponse(state);
