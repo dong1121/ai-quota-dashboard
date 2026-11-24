@@ -2,7 +2,7 @@
 
 > **文件用途**：本規格書記錄專案的核心需求、架構設計、實際資料模型、各階段開發進度與維護發佈規範，供後續開發與版本迭代直接銜接。  
 > **建立日期**：2026-11-20  
-> **最後更新**：2026-11-23（v0.3.2 · Phase 1–3 全功能完成，GitHub Actions Windows ＋ macOS ＋ Chrome 擴充套件全綠發佈成功）  
+> **最後更新**：2026-11-24（v0.3.4 · 修正新安裝觀察期防誤判、Claude 真實消耗率優先與 NSIS 無空白檔名自動更新對齊）  
 > **目標平台**：Windows / macOS 桌面端 ＋ Google Chrome（多設定檔 Profile 環境）  
 > **GitHub 專案**：`dong1121/ai-quota-dashboard`（Public · 支援 GitHub Releases 自動更新與雙平台雲端打包）  
 > **隱私原則**：Local-First（全本機運作、不經第三方雲端伺服器、不儲存帳號密碼、設定備份不含本機配對碼）
@@ -281,7 +281,7 @@ CREATE TABLE notification_logs (
 #### 1. Monorepo ＋ `electron-builder` 關鍵定案（已驗證，切勿任意改動）
 * **`electronVersion` 鎖定**：`apps/desktop/electron-builder.yml` 必須維持 `electronVersion: "35.7.5"`（因 npm workspaces 會將 `electron` 提升至根目錄 `node_modules`，不鎖定會導致打包找不到版本）。
 * **依賴切分原則**：`apps/desktop/package.json` 的 `dependencies` **僅放置 Electron 主進程執行期外部依賴**（`chokidar`、`electron-updater`、`sql.js`）；已由 `esbuild`／`Vite` 打包進 `dist/` 的 `@ai-quota/shared`、`react`、`react-dom`、`lucide-react` 維持在 `devDependencies`，避免 npm workspace symlink 指向 `apps/desktop` 外部導致 `app.asar` 報錯。
-* **雙平台零撞車發佈流程**：`.github/workflows/release.yml` 中 `windows-latest` 與 `macos-latest` 皆以 `--publish never` 各自打包並上傳 Artifact，最後由 `publish-release` 統一 `gh release create` 原子發佈；macOS 維持 `CSC_IDENTITY_AUTO_DISCOVERY: false`、`mac.identity: null`、`mac.notarize: false`、`dmg.sign: false` 以免除付費憑證需求。
+* **雙平台零撞車與檔名無空白規則**：`.github/workflows/release.yml` 中 `windows-latest` 與 `macos-latest` 皆以 `--publish never` 各自打包並上傳 Artifact，最後由 `publish-release` 統一 `gh release create` 原子發佈；所有目標（`nsis`、`portable`、`mac`）皆明確設定不含空白的 `artifactName`（如 `AI-Quota-Dashboard-Setup-${version}.${ext}`），確保 `latest.yml` 與 GitHub 上傳檔名 100% 一致不發生 404；macOS 維持 `CSC_IDENTITY_AUTO_DISCOVERY: false`、`mac.identity: null`、`mac.notarize: false`、`dmg.sign: false` 以免除付費憑證需求。
 * **變更依賴或版本號時**：務必同步更新 `package-lock.json`（執行 `npm.cmd install --package-lock-only`），否則雲端 `npm ci` 會因 lockfile 不同步而失敗。
 
 #### 2. Release 下載檔案對照（給自己與朋友選檔）

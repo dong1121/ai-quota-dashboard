@@ -1,6 +1,6 @@
 {
   "name": "@ai-quota/desktop",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "private": true,
   "description": "Local-first multi-account AI quota dashboard for Windows and macOS",
   "author": "dong1121",
