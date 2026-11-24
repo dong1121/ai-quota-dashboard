@@ -93,6 +93,38 @@ describe('@ai-quota/shared', () => {
     });
     expect(health.grade).toBe('cancel_candidate');
 
+    // Fresh Day-1 install on the 24th of the month with active Claude Cowork weekly utilization
+    const freshClaudeActive = evaluateSubscriptionHealth({
+      provider: 'claude',
+      isPaused: false,
+      activeDays: 1,
+      periodDays: 24,
+      trackedDays: 1,
+      totalInteractions: 0,
+      daysSinceLastActive: 0,
+      avgWeeklyUtilization: 48,
+      monthlyEquivalentCost: 660,
+      daysUntilNextBilling: 5,
+      idleDaysThreshold: 14,
+    });
+    expect(freshClaudeActive.grade).toBe('great');
+
+    // Fresh Day-1 install with low initial usage should show observation grace period, NOT cancel_candidate
+    const freshClaudeLow = evaluateSubscriptionHealth({
+      provider: 'claude',
+      isPaused: false,
+      activeDays: 1,
+      periodDays: 24,
+      trackedDays: 1,
+      totalInteractions: 0,
+      daysSinceLastActive: 0,
+      avgWeeklyUtilization: 8,
+      monthlyEquivalentCost: 660,
+      daysUntilNextBilling: 5,
+      idleDaysThreshold: 14,
+    });
+    expect(freshClaudeLow.grade).toBe('no_data');
+
     expect(isWithinQuietHours(23, 23, 8)).toBe(true);
     expect(isWithinQuietHours(2, 23, 8)).toBe(true);
     expect(isWithinQuietHours(10, 23, 8)).toBe(false);

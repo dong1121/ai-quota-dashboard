@@ -1054,11 +1054,25 @@ export class DatabaseRepository {
           ? Math.round((monthlyEq / pStat.interactions) * 10) / 10
           : null;
 
+      // Compute how many days we have tracked this provider (prevents false alarms on fresh installs)
+      let earliestMs: number | null = null;
+      for (const a of pAccounts) {
+        const ms = Date.parse(a.createdAt);
+        if (!Number.isNaN(ms) && (earliestMs === null || ms < earliestMs)) {
+          earliestMs = ms;
+        }
+      }
+      const trackedDays =
+        earliestMs !== null
+          ? Math.max(1, Math.floor((nowMs - earliestMs) / 86_400_000) + 1)
+          : periodDays;
+
       const evaluated = evaluateSubscriptionHealth({
         provider,
         isPaused: sub.isPaused,
         activeDays: pStat.activeDays.size,
         periodDays,
+        trackedDays,
         totalInteractions: pStat.interactions,
         daysSinceLastActive,
         avgWeeklyUtilization: avgWeeklyUtil,

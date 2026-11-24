@@ -70,6 +70,7 @@ export function evaluateSubscriptionHealth(params: {
   isPaused: boolean;
   activeDays: number;
   periodDays: number;
+  trackedDays?: number;
   totalInteractions: number;
   daysSinceLastActive: number | null;
   avgWeeklyUtilization: number | null;
@@ -85,16 +86,39 @@ export function evaluateSubscriptionHealth(params: {
     };
   }
 
-  const hasActivity = params.activeDays > 0 || params.totalInteractions > 0;
+  const isClaude = params.provider === 'claude';
+  const hasClaudeUtil = isClaude && params.avgWeeklyUtilization !== null;
+  const hasActivity =
+    params.activeDays > 0 ||
+    params.totalInteractions > 0 ||
+    (hasClaudeUtil && (params.avgWeeklyUtilization ?? 0) > 0);
   const idleTooLong =
     params.daysSinceLastActive !== null && params.daysSinceLastActive >= params.idleDaysThreshold;
 
-  // Claude uses percentage snapshots as primary activity signal when available
-  const isClaude = params.provider === 'claude';
-  const lowClaudeUtil =
-    isClaude && params.avgWeeklyUtilization !== null && params.avgWeeklyUtilization < 15;
+  // How many days we have genuinely observed this provider in the current period
+  const observedDays = Math.min(
+    params.periodDays,
+    params.trackedDays !== undefined ? Math.max(1, params.trackedDays) : params.periodDays,
+  );
+
+  // Claude reports real server-side 7-day utilization (covers Cowork desktop, web & mobile):
+  // If already >= 30%, it's clearly active & worthwhile even on Day 1 of installation!
+  if (hasClaudeUtil && (params.avgWeeklyUtilization ?? 0) >= 30 && !idleTooLong) {
+    return {
+      grade: 'great',
+      headline: `主力愛將 · 週均消耗 ${Math.round(params.avgWeeklyUtilization!)}%`,
+      suggestion: '伺服器真實額度利用率良好，屬於主力常用服務！',
+    };
+  }
 
   if (!hasActivity) {
+    if (observedDays < 7) {
+      return {
+        grade: 'no_data',
+        headline: `資料累積中（已追蹤 ${observedDays} 天）`,
+        suggestion: '剛開始追蹤不久，待累積滿 7 天數據後系統將自動提供停訂體檢。',
+      };
+    }
     if (params.monthlyEquivalentCost > 0) {
       return {
         grade: 'cancel_candidate',
@@ -112,12 +136,31 @@ export function evaluateSubscriptionHealth(params: {
     };
   }
 
-  if (idleTooLong || (params.activeDays <= 2 && params.periodDays >= 20 && (lowClaudeUtil || params.totalInteractions < 8))) {
+  // New-install grace period: never emit a false "consider cancelling" warning
+  // before we have observed at least 7 days (unless genuinely idle >= threshold).
+  if (observedDays < 7 && !idleTooLong) {
+    return {
+      grade: 'no_data',
+      headline: hasClaudeUtil
+        ? `資料累積中 · 本週已用 ${Math.round(params.avgWeeklyUtilization!)}%`
+        : `資料累積中（已追蹤 ${observedDays} 天）`,
+      suggestion: '剛安裝不久，持續累積滿 7 天數據後會給出更精準的 CP 值體檢。',
+    };
+  }
+
+  // For Claude with server percentage data, judge low usage by weekly utilization % rather than raw event counts
+  const isSeverelyLow = hasClaudeUtil
+    ? (params.avgWeeklyUtilization ?? 0) < 15 && params.activeDays <= 2
+    : params.activeDays <= 2 && params.totalInteractions < 8;
+
+  if (idleTooLong || (observedDays >= 14 && isSeverelyLow)) {
     return {
       grade: 'cancel_candidate',
       headline: idleTooLong
         ? `已閒置 ${params.daysSinceLastActive} 天`
-        : `活躍偏低（${params.activeDays} 天）`,
+        : hasClaudeUtil
+          ? `週均消耗偏低（${Math.round(params.avgWeeklyUtilization!)}%）`
+          : `活躍偏低（${params.activeDays} 天）`,
       suggestion:
         params.daysUntilNextBilling !== null
           ? `距離下次扣款僅剩 ${params.daysUntilNextBilling} 天，可考慮先停訂省荷包。`
@@ -126,20 +169,22 @@ export function evaluateSubscriptionHealth(params: {
   }
 
   if (
-    params.activeDays <= 5 ||
-    (isClaude && params.avgWeeklyUtilization !== null && params.avgWeeklyUtilization < 30)
+    (hasClaudeUtil && (params.avgWeeklyUtilization ?? 0) < 30) ||
+    (!hasClaudeUtil && params.activeDays <= 5)
   ) {
     return {
       grade: 'low',
-      headline: `偏低使用（活躍 ${params.activeDays} 天）`,
+      headline: hasClaudeUtil
+        ? `偏低使用 · 週均消耗 ${Math.round(params.avgWeeklyUtilization!)}%`
+        : `偏低使用（活躍 ${params.activeDays} 天）`,
       suggestion: '使用頻率不高，可觀察下期用量再決定是否續訂。',
     };
   }
 
   return {
     grade: 'great',
-    headline: isClaude && params.avgWeeklyUtilization !== null
-      ? `主力愛將 · 週均消耗 ${Math.round(params.avgWeeklyUtilization)}%`
+    headline: hasClaudeUtil
+      ? `主力愛將 · 週均消耗 ${Math.round(params.avgWeeklyUtilization!)}%`
       : `主力愛將 · 活躍 ${params.activeDays} 天`,
     suggestion: '使用頻率穩定，訂閱利用率良好！',
   };

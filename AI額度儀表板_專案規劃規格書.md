@@ -2,7 +2,7 @@
 
 > **文件用途**：本規格書記錄專案的核心需求、架構設計、實際資料模型、各階段開發進度與維護發佈規範，供後續開發與版本迭代直接銜接。  
 > **建立日期**：2026-11-20  
-> **最後更新**：2026-11-23（v0.3.0 · Phase 1–3 核心功能與跨平台自動更新發佈架構已完成）  
+> **最後更新**：2026-11-23（v0.3.2 · Phase 1–3 全功能完成，GitHub Actions Windows ＋ macOS ＋ Chrome 擴充套件全綠發佈成功）  
 > **目標平台**：Windows / macOS 桌面端 ＋ Google Chrome（多設定檔 Profile 環境）  
 > **GitHub 專案**：`dong1121/ai-quota-dashboard`（Public · 支援 GitHub Releases 自動更新與雙平台雲端打包）  
 > **隱私原則**：Local-First（全本機運作、不經第三方雲端伺服器、不儲存帳號密碼、設定備份不含本機配對碼）
@@ -240,11 +240,12 @@ CREATE TABLE notification_logs (
 - [x] 手機版對話差量同步（Delta Sync）＋ 卡片懸停 `+1`／`觸頂`／`復原` 一鍵微調。
 - [x] 迷你看板與統計視窗各自獨立的字體大小（`rem` 85%–135%）與背景不透明度（濃淡滑桿）調整。
 
-### Phase 3：每月統計、跨平台與自動更新發佈 — ✅ 已完成（v0.3.0）
+### Phase 3：每月統計、跨平台與自動更新發佈 — ✅ 已完成（v0.3.2 雙平台全綠上線）
 - [x] 獨立寬版統計與訂閱 CP 值體檢視窗（4 KPI、月繳／年繳方案體檢、家庭群組彙總＋多帳號負載分佈、每日堆疊趨勢圖、24 小時高峰分佈圖）。
 - [x] 設定備份匯出／匯入 JSON（不含配對碼）與一鍵重置預設值。
-- [x] macOS 跨平台適配（Retina PNG Menu Bar 圖示、正下方彈出定位、Dock 自動隱藏與 `.dmg`/`.zip` 打包設定）。
-- [x] GitHub Releases 自動檢查與下載更新機制（綁定 `dong1121/ai-quota-dashboard`）＋ `.github/workflows/release.yml` 雙平台自動發版工作流。
+- [x] macOS 跨平台適配（Retina PNG Menu Bar 圖示、正下方彈出定位、Dock 自動隱藏、免付費憑證打包 `identity: null` / `notarize: false` / `dmg.sign: false`）。
+- [x] GitHub Releases 自動檢查與下載更新機制（綁定 `dong1121/ai-quota-dashboard`）＋ `.github/workflows/release.yml` 雙平台原子發佈流程（`verify-and-extension` → `windows-latest` & `macos-latest` 各自 `--publish never` 打包 → 單一 `publish-release` 統一上傳避免搶傳撞車）。
+- [x] 已完成 `v0.3.2` 首次全綠雲端發佈（Windows NSIS／Portable、macOS `arm64`/`x64` `.dmg`/`.zip`、Chrome 擴充套件 `.zip`、`latest.yml`、`latest-mac.yml`）。
 - [x] 完成 [README.md](README.md)（朋友端 3 分鐘安裝指南＋作者端 GitHub 上傳與發版手冊）。
 
 ### Phase 4：未來可選擴充方向（視實際使用回饋決定）
@@ -275,8 +276,23 @@ CREATE TABLE notification_logs (
 └── apps/extension/                    # Chrome MV3 擴充套件（v0.2.0），建置輸出至 apps/extension/dist/
 ```
 
-### 開發與發版速查備忘
-* **本機環境注意**：因專案位於含中括號 `[Gemini_CLI]` 的 OneDrive 路徑下，在 PowerShell 操作時建議用 `npm.cmd`，且 `.bat` 檔維持純 ASCII ＋ CRLF 格式。
-* **版號同步位置（發新版前一起改）**：`package.json`、`apps/desktop/package.json`、`apps/desktop/src/main/index.ts`（`APP_VERSION`），若擴充套件有改則同步改 `apps/extension/public/manifest.json`。
+### 開發、打包防雷與發版速查備忘
+
+#### 1. Monorepo ＋ `electron-builder` 關鍵定案（已驗證，切勿任意改動）
+* **`electronVersion` 鎖定**：`apps/desktop/electron-builder.yml` 必須維持 `electronVersion: "35.7.5"`（因 npm workspaces 會將 `electron` 提升至根目錄 `node_modules`，不鎖定會導致打包找不到版本）。
+* **依賴切分原則**：`apps/desktop/package.json` 的 `dependencies` **僅放置 Electron 主進程執行期外部依賴**（`chokidar`、`electron-updater`、`sql.js`）；已由 `esbuild`／`Vite` 打包進 `dist/` 的 `@ai-quota/shared`、`react`、`react-dom`、`lucide-react` 維持在 `devDependencies`，避免 npm workspace symlink 指向 `apps/desktop` 外部導致 `app.asar` 報錯。
+* **雙平台零撞車發佈流程**：`.github/workflows/release.yml` 中 `windows-latest` 與 `macos-latest` 皆以 `--publish never` 各自打包並上傳 Artifact，最後由 `publish-release` 統一 `gh release create` 原子發佈；macOS 維持 `CSC_IDENTITY_AUTO_DISCOVERY: false`、`mac.identity: null`、`mac.notarize: false`、`dmg.sign: false` 以免除付費憑證需求。
+* **變更依賴或版本號時**：務必同步更新 `package-lock.json`（執行 `npm.cmd install --package-lock-only`），否則雲端 `npm ci` 會因 lockfile 不同步而失敗。
+
+#### 2. Release 下載檔案對照（給自己與朋友選檔）
+* **Windows 正式安裝版（推薦，支援一鍵自動更新）**：`AI.Quota.Dashboard.Setup.x.y.z.exe`
+* **Windows 免安裝可攜版**：`AI-Quota-Dashboard-Portable-x.y.z-win-x64.exe`
+* **macOS Apple Silicon (M1–M4)**：`AI-Quota-Dashboard-x.y.z-mac-arm64.dmg`
+* **macOS Intel**：`AI-Quota-Dashboard-x.y.z-mac-x64.dmg`
+* **Chrome 擴充套件**：`AI-Quota-Chrome-Extension-vx.y.z.zip`
+* **自動更新專用系統檔（請勿刪除、一般使用者無須點擊）**：`latest.yml`、`latest-mac.yml`、`*.blockmap`、`*-mac-*.zip`
+
+#### 3. 跨電腦接力開發與日常操作
+* **本機環境注意**：若專案路徑含中括號 `[Gemini_CLI]`，PowerShell 需用 `Set-Location -LiteralPath "..."` 或改用 `cmd`；執行 npm 請用 `npm.cmd`，`.bat` 檔維持純 ASCII ＋ CRLF 格式。
+* **多台電腦接力開發（公司／家裡）**：家裡電腦請直接 `git clone https://github.com/dong1121/ai-quota-dashboard.git` 到**非 OneDrive 本機資料夾**（避免 OneDrive 鎖定 `.git` 與 `node_modules`）；每次開工前先 `git pull`，改完後同步更新 `package.json`、`apps/desktop/package.json`、`apps/desktop/src/main/index.ts`（`APP_VERSION`）與 `package-lock.json`，推送 `main` 與新標籤 `vX.Y.Z` 即可自動發佈新版。
 * **一鍵驗證指令**：`npm.cmd run build && npm.cmd run typecheck && npm.cmd test`（目前 14 / 14 全部通過）。
-* **首次發佈待辦**：於 GitHub 帳號 `dong1121` 建立 Public Repo `ai-quota-dashboard`，依 `README.md` 第二節推送 `main` 與 `v0.3.0` 標籤，即可觸發首次雲端自動打包與發佈。

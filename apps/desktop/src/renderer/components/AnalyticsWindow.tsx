@@ -632,8 +632,8 @@ const GRADE_STYLE: Record<HealthGrade, { label: string; badge: string }> = {
     badge: 'bg-slate-600/30 text-slate-300 border-slate-500/30',
   },
   no_data: {
-    label: '⚪ 尚無紀錄',
-    badge: 'bg-white/10 text-slate-300 border-white/15',
+    label: '🔵 觀察累積中',
+    badge: 'bg-sky-500/15 text-sky-200 border-sky-400/25',
   },
 };
 
