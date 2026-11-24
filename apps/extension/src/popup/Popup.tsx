@@ -53,16 +53,23 @@ export const Popup: React.FC = () => {
     try {
       const res = (await chrome.runtime.sendMessage({
         type: 'SCAN_OPEN_TABS',
-      } satisfies ExtensionBgMessage)) as { scannedTabs: number; claudeOk: boolean };
+      } satisfies ExtensionBgMessage)) as {
+        scannedTabs: number;
+        claudeOk: boolean;
+        geminiOk?: boolean;
+      };
       setTimeout(() => {
         void loadState();
       }, 1500);
-      if (res.scannedTabs > 0 || res.claudeOk) {
+      const synced: string[] = [];
+      if (res.claudeOk) synced.push('Claude');
+      if (res.geminiOk) synced.push('Gemini');
+      if (res.scannedTabs > 0 || synced.length > 0) {
         setSyncNote(
-          `已掃描 ${res.scannedTabs} 個 AI 分頁${res.claudeOk ? '，Claude 額度已同步' : ''}`,
+          `已掃描 ${res.scannedTabs} 個分頁${synced.length > 0 ? `，背景同步成功：${synced.join(' / ')}` : ''}`,
         );
       } else {
-        setSyncNote('未偵測到已開啟的 Claude / Gemini / ChatGPT 分頁，請打開網頁後自動同步');
+        setSyncNote('未偵測到已登入或已開啟的 AI 分頁（使用獨立 App 者請在此瀏覽器登入一次網頁版）');
       }
     } finally {
       setSyncingClaude(false);

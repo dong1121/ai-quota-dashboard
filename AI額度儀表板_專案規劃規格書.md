@@ -2,7 +2,7 @@
 
 > **文件用途**：本規格書記錄專案的核心需求、架構設計、實際資料模型、各階段開發進度與維護發佈規範，供後續開發與版本迭代直接銜接。  
 > **建立日期**：2026-11-20  
-> **最後更新**：2026-11-24（v0.3.4 · 修正新安裝觀察期防誤判、Claude 真實消耗率優先與 NSIS 無空白檔名自動更新對齊）  
+> **最後更新**：2026-11-24（**v1.0.0 正式版** · 新增 Gemini XHR 攔截、背景同步支援桌面 App／Edge PWA、DOM 備援計數與 Microsoft Edge 相容）  
 > **目標平台**：Windows / macOS 桌面端 ＋ Google Chrome（多設定檔 Profile 環境）  
 > **GitHub 專案**：`dong1121/ai-quota-dashboard`（Public · 支援 GitHub Releases 自動更新與雙平台雲端打包）  
 > **隱私原則**：Local-First（全本機運作、不經第三方雲端伺服器、不儲存帳號密碼、設定備份不含本機配對碼）
@@ -28,7 +28,7 @@
 | 服務名稱 | 使用入口 | 額度池規則 | 採集方式（已實作） | 精度等級 |
 | :--- | :--- | :--- | :--- | :--- |
 | **Claude Cowork** | Claude 桌面版 / 網頁 / 手機 | 5 小時滾動額度（Session）＋每週額度（Weekly）；各端共用同一額度池 | `claude.ai` 分頁同源直接查詢 `/api/organizations/{orgId}/usage`（抗 Cloudflare），並由 Service Worker 每 3 分鐘背景輪詢；同步寫入 `quota_snapshots` 歷史快照以計算月活躍天數與週均消耗率 | ⭐⭐⭐⭐⭐ 精準百分比＋重置倒數 |
-| **Gemini Pro 家庭版** | Chrome 多設定檔 ＋ 手機版 | 家庭群組內每個成員帳號額度各自獨立，但帳單共計一份方案費 | 各 Chrome Profile 安裝同一擴充套件；透過 MAIN World 讀取 `WIZ_global_data.oPEP7c`（不依賴介面語系）精準取得 Google Email，攔截 `StreamGenerate` 計數與 `429`／多語系 DOM 備援 | ⭐⭐⭐ 估算記帳＋觸頂倒數 |
+| **Gemini Pro 家庭版** | Chrome / Edge 多設定檔 ＋ Gemini 桌面應用程式 / PWA ＋ 手機版 | 家庭群組內每個成員帳號額度各自獨立，但帳單共計一份方案費 | `v1.0.0` 四層追蹤：(1) MAIN World 同時攔截 `fetch`＋`XMLHttpRequest`（Google `XhrIo` `StreamGenerate`）與 `WIZ_global_data.oPEP7c` 精準歸戶；(2) Service Worker 每 5 分鐘背景輪詢 `gemini.google.com/app` 自動補記獨立 App／手機新增對話（比照 Claude Cowork）；(3) DOM `user-query` 氣泡備援計數；(4) 支援直接載入 Microsoft Edge (`edge://extensions`) | ⭐⭐⭐⭐ 網頁／App／手機全通路追蹤 |
 | **Antigravity CLI (AGY)** | 本機終端機 | 獨立開發者工具紀錄 | **預設開啟**：增量讀取 `~/.gemini/antigravity-cli/brain/*/.system_generated/logs/transcript.jsonl`，以 `external_event_id` 冪等去重，自動依 Email 歸戶為 `🚀 AGY` 槽位 | ⭐⭐⭐⭐ 精準步驟統計 |
 | **標準 Gemini CLI（選用）** | 本機終端機 | 免費開發者額度池 | **預設關閉**（保持付費版使用者介面精簡；設定頁可一鍵開啟供免費版朋友使用）：讀取 `~/.gemini/google_accounts.json` 與 `tmp/**/chats/session-*.json`，統計次數與 Token | ⭐⭐⭐⭐ 精準次數與 Token |
 | **ChatGPT Plus** | Chrome 網頁版 ＋ 手機版 | 依模型區分的滾動時間窗（推理模型、主力對話、深度研究、圖片生成） | MAIN World 攔截 `/backend-api/conversation` 依 `model` 自動分類計數，讀取 `/api/auth/session` 取得帳號 Email，並攔截 `429` / `clears_in` / `resets_at` 精準對齊重置時間 | ⭐⭐⭐⭐ 滾動估算＋限流校準 |
@@ -240,16 +240,19 @@ CREATE TABLE notification_logs (
 - [x] 手機版對話差量同步（Delta Sync）＋ 卡片懸停 `+1`／`觸頂`／`復原` 一鍵微調。
 - [x] 迷你看板與統計視窗各自獨立的字體大小（`rem` 85%–135%）與背景不透明度（濃淡滑桿）調整。
 
-### Phase 3：每月統計、跨平台與自動更新發佈 — ✅ 已完成（v0.3.2 雙平台全綠上線）
+### Phase 3：每月統計、跨平台與自動更新發佈 — ✅ 已完成（v1.0.0 正式版雙平台全綠上線）
 - [x] 獨立寬版統計與訂閱 CP 值體檢視窗（4 KPI、月繳／年繳方案體檢、家庭群組彙總＋多帳號負載分佈、每日堆疊趨勢圖、24 小時高峰分佈圖）。
+- [x] 新安裝 7 天觀察保護期與 Claude 真實消耗率優先（`v0.3.3`）：依帳號建立日期計算實際已追蹤天數（`trackedDays < 7` 顯示 `🔵 觀察累積中` 避免月底剛安裝就誤報停訂），且 Claude 只要伺服器真實每週消耗率 `>= 30%` 即直接評為 `🟢 超值主力`。
+- [x] Gemini 獨立應用程式 / Edge PWA 全通路追蹤（`v1.0.0`）：補齊 `XMLHttpRequest` 攔截、背景每 5 分鐘 `gemini.google.com/app` 差量同步、DOM 提問氣泡備援與 `extension://`（Edge）CORS 支援。
 - [x] 設定備份匯出／匯入 JSON（不含配對碼）與一鍵重置預設值。
 - [x] macOS 跨平台適配（Retina PNG Menu Bar 圖示、正下方彈出定位、Dock 自動隱藏、免付費憑證打包 `identity: null` / `notarize: false` / `dmg.sign: false`）。
-- [x] GitHub Releases 自動檢查與下載更新機制（綁定 `dong1121/ai-quota-dashboard`）＋ `.github/workflows/release.yml` 雙平台原子發佈流程（`verify-and-extension` → `windows-latest` & `macos-latest` 各自 `--publish never` 打包 → 單一 `publish-release` 統一上傳避免搶傳撞車）。
-- [x] 已完成 `v0.3.2` 首次全綠雲端發佈（Windows NSIS／Portable、macOS `arm64`/`x64` `.dmg`/`.zip`、Chrome 擴充套件 `.zip`、`latest.yml`、`latest-mac.yml`）。
+- [x] GitHub Releases 自動檢查與下載更新機制（綁定 `dong1121/ai-quota-dashboard`）＋ `.github/workflows/release.yml` 雙平台原子發佈流程（`verify-and-extension` → `windows-latest` & `macos-latest` 各自 `--publish never` 打包並排除 `builder-debug.yml` → 單一 `publish-release` 統一上傳避免搶傳撞車）。
+- [x] 正式發佈 `v1.0.0`（修正 NSIS 無空白檔名 `AI-Quota-Dashboard-Setup-${version}.${ext}` 確保 `latest.yml` 與自動下載 100% 一致）。
 - [x] 完成 [README.md](README.md)（朋友端 3 分鐘安裝指南＋作者端 GitHub 上傳與發版手冊）。
 
 ### Phase 4：未來可選擴充方向（視實際使用回饋決定）
 - [ ] **Chrome Web Store「不公開（Unlisted）」上架**：讓朋友端 Chrome 擴充套件也能免手動解壓、全自動接收背景更新。
+- [ ] **Windows 程式碼簽章（Code Signing）整合**：評估申請開源免費簽章（如 SignPath.io，需加 MIT License）或微軟 Azure Trusted Signing，徹底消除 Windows 11 SmartScreen／Smart App Control 警告。
 - [ ] **開機自動啟動（Launch at Login）開關**：透過 Electron `app.setLoginItemSettings` 提供設定頁一鍵勾選開機常駐系統列。
 - [ ] **支援更多 AI 服務**：如 Perplexity、Cursor、Windsurf、GitHub Copilot 等額度探針。
 - [ ] **匯出每月統計報表圖片／CSV**：方便年度帳單回顧與記帳整理。
@@ -261,11 +264,11 @@ CREATE TABLE notification_logs (
 ```text
 1151120_AI額度儀表板/
 ├── .github/workflows/release.yml      # GitHub Actions 雙平台自動測試、打包與發佈流程
-├── package.json                       # Monorepo 根配置（v0.3.0）
+├── package.json                       # Monorepo 根配置（v1.0.0）
 ├── README.md                          # 朋友端 3 分鐘安裝指南 ＋ 作者端 GitHub 上傳與發版步驟
 ├── start-dashboard.bat                # 本機快速啟動已編譯桌面看板（純 ASCII + CRLF）
 ├── scripts/pack-extension-zip.mjs     # 打包 Chrome 擴充套件 ZIP（Windows 使用 tar.exe 避開中括號路徑問題）
-├── packages/shared/                   # 共用型別、常數、Email 歸戶、限流解析、月繳／年繳分析演算法（7 tests）
+├── packages/shared/                   # 共用型別、常數、Email 歸戶、限流解析、月繳／年繳分析與 7 天觀察期邏輯（7 tests）
 ├── apps/desktop/
 │   ├── electron-builder.yml           # Windows (NSIS/Portable) ＋ macOS (DMG/ZIP) ＋ GitHub Publish 設定
 │   ├── scripts/                       # build-electron.mjs / dev.mjs / start.mjs / generate-icons.mjs
@@ -273,7 +276,7 @@ CREATE TABLE notification_logs (
 │       ├── main/                      # config / db (sql.js) / server / collectors / notifications / updater / windowManager（7 tests）
 │       ├── preload/index.ts           # contextBridge 安全 IPC 介面
 │       └── renderer/                  # App（迷你看板）、AnalyticsWindow（獨立統計頁）、SettingsPanel、AccountCard、QuotaBar
-└── apps/extension/                    # Chrome MV3 擴充套件（v0.2.0），建置輸出至 apps/extension/dist/
+└── apps/extension/                    # Chrome / Edge MV3 擴充套件（v1.0.0），建置輸出至 apps/extension/dist/
 ```
 
 ### 開發、打包防雷與發版速查備忘
@@ -281,18 +284,26 @@ CREATE TABLE notification_logs (
 #### 1. Monorepo ＋ `electron-builder` 關鍵定案（已驗證，切勿任意改動）
 * **`electronVersion` 鎖定**：`apps/desktop/electron-builder.yml` 必須維持 `electronVersion: "35.7.5"`（因 npm workspaces 會將 `electron` 提升至根目錄 `node_modules`，不鎖定會導致打包找不到版本）。
 * **依賴切分原則**：`apps/desktop/package.json` 的 `dependencies` **僅放置 Electron 主進程執行期外部依賴**（`chokidar`、`electron-updater`、`sql.js`）；已由 `esbuild`／`Vite` 打包進 `dist/` 的 `@ai-quota/shared`、`react`、`react-dom`、`lucide-react` 維持在 `devDependencies`，避免 npm workspace symlink 指向 `apps/desktop` 外部導致 `app.asar` 報錯。
-* **雙平台零撞車與檔名無空白規則**：`.github/workflows/release.yml` 中 `windows-latest` 與 `macos-latest` 皆以 `--publish never` 各自打包並上傳 Artifact，最後由 `publish-release` 統一 `gh release create` 原子發佈；所有目標（`nsis`、`portable`、`mac`）皆明確設定不含空白的 `artifactName`（如 `AI-Quota-Dashboard-Setup-${version}.${ext}`），確保 `latest.yml` 與 GitHub 上傳檔名 100% 一致不發生 404；macOS 維持 `CSC_IDENTITY_AUTO_DISCOVERY: false`、`mac.identity: null`、`mac.notarize: false`、`dmg.sign: false` 以免除付費憑證需求。
+* **雙平台零撞車與檔名無空白規則**：`.github/workflows/release.yml` 中 `windows-latest` 與 `macos-latest` 皆以 `--publish never` 各自打包並上傳 Artifact（僅收 `latest*.yml` 排除 `builder-debug.yml`），最後由 `publish-release` 統一 `gh release create` 原子發佈；所有目標（`nsis`、`portable`、`mac`）皆明確設定不含空白的 `artifactName`（如 `AI-Quota-Dashboard-Setup-${version}.${ext}`），確保 `latest.yml` 與 GitHub 上傳檔名 100% 一致不發生 404；macOS 維持 `CSC_IDENTITY_AUTO_DISCOVERY: false`、`mac.identity: null`、`mac.notarize: false`、`dmg.sign: false` 以免除付費憑證需求。
 * **變更依賴或版本號時**：務必同步更新 `package-lock.json`（執行 `npm.cmd install --package-lock-only`），否則雲端 `npm ci` 會因 lockfile 不同步而失敗。
 
 #### 2. Release 下載檔案對照（給自己與朋友選檔）
-* **Windows 正式安裝版（推薦，支援一鍵自動更新）**：`AI.Quota.Dashboard.Setup.x.y.z.exe`
+* **Windows 正式安裝版（推薦，支援一鍵自動更新）**：`AI-Quota-Dashboard-Setup-x.y.z.exe`
 * **Windows 免安裝可攜版**：`AI-Quota-Dashboard-Portable-x.y.z-win-x64.exe`
 * **macOS Apple Silicon (M1–M4)**：`AI-Quota-Dashboard-x.y.z-mac-arm64.dmg`
 * **macOS Intel**：`AI-Quota-Dashboard-x.y.z-mac-x64.dmg`
 * **Chrome 擴充套件**：`AI-Quota-Chrome-Extension-vx.y.z.zip`
 * **自動更新專用系統檔（請勿刪除、一般使用者無須點擊）**：`latest.yml`、`latest-mac.yml`、`*.blockmap`、`*-mac-*.zip`
 
-#### 3. 跨電腦接力開發與日常操作
+#### 3. Windows 11 未簽章 `.exe` 自動更新被擋排除步驟（朋友端一次設定）
+因目前尚未購買商業程式碼簽章，部分 Windows 11 電腦在下載自動更新檔（位於 `%LOCALAPPDATA%\ai-quota-dashboard-updater\pending\`）時可能被 Defender／SmartScreen 直接攔截，可請朋友做一次以下設定：
+1. **加入 Windows Defender 排除資料夾**：Windows 安全性 → 病毒與威脅防護 → 管理設定 → 排除項目 → 新增資料夾：
+   - `%LOCALAPPDATA%\ai-quota-dashboard-updater`
+   - `%LOCALAPPDATA%\Programs\ai-quota-dashboard`
+2. **調整 SmartScreen 層級**：Windows 安全性 → 應用程式與瀏覽器控制 → 信譽評等保護設定 → 將「檢查應用程式和檔案」從「封鎖」改為「**警告**」。
+3. *(註：若全新 Win11 開啟「智慧型應用程式控制 Smart App Control」，關閉後需重灌才能重開，請由使用者自行評估；不關閉者可改用 Node.js 執行 `start-dashboard.bat`，因 `node.exe` 與 `electron.exe` 皆有官方簽章不會被擋。)*
+
+#### 4. 跨電腦接力開發與日常操作
 * **本機環境注意**：若專案路徑含中括號 `[Gemini_CLI]`，PowerShell 需用 `Set-Location -LiteralPath "..."` 或改用 `cmd`；執行 npm 請用 `npm.cmd`，`.bat` 檔維持純 ASCII ＋ CRLF 格式。
 * **多台電腦接力開發（公司／家裡）**：家裡電腦請直接 `git clone https://github.com/dong1121/ai-quota-dashboard.git` 到**非 OneDrive 本機資料夾**（避免 OneDrive 鎖定 `.git` 與 `node_modules`）；每次開工前先 `git pull`，改完後同步更新 `package.json`、`apps/desktop/package.json`、`apps/desktop/src/main/index.ts`（`APP_VERSION`）與 `package-lock.json`，推送 `main` 與新標籤 `vX.Y.Z` 即可自動發佈新版。
 * **一鍵驗證指令**：`npm.cmd run build && npm.cmd run typecheck && npm.cmd test`（目前 14 / 14 全部通過）。

@@ -70,7 +70,7 @@ export class LocalApiServer {
 
   private isAllowedOrigin(origin: string | undefined): boolean {
     if (!origin) return true;
-    return origin.startsWith('chrome-extension://');
+    return origin.startsWith('chrome-extension://') || origin.startsWith('extension://');
   }
 
   private isValidToken(provided: string | undefined): boolean {

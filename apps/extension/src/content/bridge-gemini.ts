@@ -179,18 +179,46 @@ if (!win[GUARD_KEY]) {
     }
   });
 
-  // Multilingual DOM fallback detector for Gemini limit/downgrade banners
+  // Multilingual DOM fallback detector for Gemini limit/downgrade banners + user prompt bubble fallback
   let lastDomCheck = 0;
   let lastReportedLimitAt = 0;
+  let seenUserQueryCount = document.querySelectorAll('user-query, [data-test-id="user-query"]').length;
 
   const observer = new MutationObserver(() => {
     const now = Date.now();
-    if (now - lastDomCheck < 4000) return;
+    if (now - lastDomCheck < 2000) return;
     lastDomCheck = now;
 
     if (!cachedEmail) {
       const found = discoverGoogleEmail();
       if (found) registerHeartbeat();
+    }
+
+    // Fallback user-query bubble counter if Google changes RPC URLs
+    const currentQueries = document.querySelectorAll('user-query, [data-test-id="user-query"]').length;
+    if (currentQueries > seenUserQueryCount) {
+      const delta = currentQueries - seenUserQueryCount;
+      seenUserQueryCount = currentQueries;
+      // Only fire fallback if XHR/fetch interceptor did not already record a prompt within 4 seconds
+      if (delta === 1 && now - lastDesktopPromptMs > 4000) {
+        lastDesktopPromptMs = now;
+        sendToBg({
+          type: 'REPORT_EVENT',
+          payload: {
+            provider: 'gemini',
+            identityKey: discoverGoogleEmail() ?? 'gemini-web-profile',
+            bucketType: 'gemini_web',
+            measureMode: 'count',
+            source: 'chrome_ext',
+            modelName: 'gemini-web-dom',
+            deltaCount: 1,
+            occurredAt: new Date(now).toISOString(),
+          },
+        });
+      }
+    } else if (currentQueries < seenUserQueryCount) {
+      // User switched conversations
+      seenUserQueryCount = currentQueries;
     }
 
     if (now - lastReportedLimitAt < 60_000) return;

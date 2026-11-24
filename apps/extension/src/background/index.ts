@@ -1,4 +1,4 @@
-import type { QuotaSnapshotInput } from '@ai-quota/shared';
+import { parseGeminiAppHtml, type QuotaSnapshotInput } from '@ai-quota/shared';
 import {
   pushHeartbeat,
   pushSnapshot,
@@ -16,23 +16,31 @@ import {
 import type { ExtensionBgMessage } from '../shared/messages.js';
 
 const CLAUDE_POLL_ALARM = 'claude-usage-poll';
+const GEMINI_BG_POLL_ALARM = 'gemini-bg-delta-poll';
+const STORAGE_KEY_GEMINI_BG_CONVS = 'ai_quota_gemini_bg_convs';
 
 let lastConnected = false;
 let lastError: string | null = null;
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create(CLAUDE_POLL_ALARM, { periodInMinutes: 3 });
+  chrome.alarms.create(GEMINI_BG_POLL_ALARM, { periodInMinutes: 5 });
   void syncClaudeUsage();
+  void syncGeminiBackground();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   chrome.alarms.create(CLAUDE_POLL_ALARM, { periodInMinutes: 3 });
+  chrome.alarms.create(GEMINI_BG_POLL_ALARM, { periodInMinutes: 5 });
   void syncClaudeUsage();
+  void syncGeminiBackground();
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === CLAUDE_POLL_ALARM) {
     void syncClaudeUsage();
+  } else if (alarm.name === GEMINI_BG_POLL_ALARM) {
+    void syncGeminiBackground();
   }
 });
 
@@ -88,6 +96,95 @@ async function scanAlreadyOpenAiTabs(): Promise<{ scannedTabs: number }> {
   }
 
   return { scannedTabs };
+}
+
+/**
+ * Background Gemini sync (mirrors Claude Cowork strategy):
+ * Even when a user chats exclusively inside the Gemini Desktop App, Edge PWA, or Mobile App,
+ * signing into gemini.google.com once in Chrome lets the extension periodically fetch
+ * conversation deltas from the same Google account and push them to the dashboard.
+ */
+async function syncGeminiBackground(): Promise<{ ok: boolean; added?: number; reason?: string }> {
+  const settings = await getSettings();
+  if (!settings.pairingToken) {
+    return { ok: false, reason: 'no_pairing_token' };
+  }
+
+  try {
+    const res = await fetch('https://gemini.google.com/app', {
+      credentials: 'include',
+      headers: { Accept: 'text/html' },
+    });
+    if (!res.ok) {
+      return { ok: false, reason: `http_${res.status}` };
+    }
+    const html = await res.text();
+    const parsed = parseGeminiAppHtml(html);
+    if (!parsed.email) {
+      return { ok: false, reason: 'not_logged_in' };
+    }
+
+    const profileHint = resolveProfileHint(settings);
+    const hbOk = await pushHeartbeat(settings, {
+      provider: 'gemini',
+      identityKey: parsed.email,
+      profileHint,
+      buckets: [{ bucketType: 'gemini_web', measureMode: 'count' }],
+    });
+    if (!hbOk) return { ok: false, reason: 'desktop_unreachable' };
+
+    // Diff conversation IDs against persisted seen set per email
+    const storeKey = `${STORAGE_KEY_GEMINI_BG_CONVS}:${parsed.email}`;
+    const stored = await chrome.storage.local.get(storeKey);
+    const prevIds = stored[storeKey] as string[] | undefined;
+
+    if (!Array.isArray(prevIds)) {
+      // Seed baseline on first sync without backfilling historical conversations
+      await chrome.storage.local.set({ [storeKey]: parsed.conversationIds.slice(0, 80) });
+      await recordServiceSync({
+        provider: 'gemini',
+        identityKey: parsed.email,
+        lastSyncedAt: new Date().toISOString(),
+        note: '背景已連線',
+      });
+      return { ok: true, added: 0 };
+    }
+
+    const seen = new Set(prevIds);
+    let added = 0;
+    for (const id of parsed.conversationIds) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const ok = await pushUsageEvent(settings, {
+        provider: 'gemini',
+        identityKey: parsed.email,
+        profileHint,
+        bucketType: 'gemini_web',
+        measureMode: 'count',
+        source: 'mobile_delta',
+        modelName: 'gemini-app-bg-sync',
+        deltaCount: 1,
+        occurredAt: new Date().toISOString(),
+        externalEventId: `gemini-delta:${id}`,
+      });
+      if (ok) added += 1;
+    }
+
+    if (added > 0) {
+      await chrome.storage.local.set({ [storeKey]: Array.from(seen).slice(-120) });
+    }
+
+    await recordServiceSync({
+      provider: 'gemini',
+      identityKey: parsed.email,
+      lastSyncedAt: new Date().toISOString(),
+      note: added > 0 ? `背景補記 +${added}` : '背景同步中',
+    });
+
+    return { ok: true, added };
+  } catch {
+    return { ok: false, reason: 'network_error' };
+  }
 }
 
 /**
@@ -286,8 +383,15 @@ chrome.runtime.onMessage.addListener(
 
         case 'SCAN_OPEN_TABS': {
           const tabRes = await scanAlreadyOpenAiTabs();
-          const claudeRes = await syncClaudeUsage();
-          sendResponse({ scannedTabs: tabRes.scannedTabs, claudeOk: claudeRes.ok });
+          const [claudeRes, geminiRes] = await Promise.all([
+            syncClaudeUsage(),
+            syncGeminiBackground(),
+          ]);
+          sendResponse({
+            scannedTabs: tabRes.scannedTabs,
+            claudeOk: claudeRes.ok,
+            geminiOk: geminiRes.ok,
+          });
           break;
         }
 
@@ -299,6 +403,7 @@ chrome.runtime.onMessage.addListener(
           if (verify.ok) {
             await scanAlreadyOpenAiTabs();
             void syncClaudeUsage();
+            void syncGeminiBackground();
           }
           const state: ExtensionRuntimeState = {
             settings: nextSettings,

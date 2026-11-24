@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI 額度儀表板探針",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Local-First 多帳號 AI 額度自動探索與同步探針（支援 Claude、Gemini、ChatGPT）",
   "icons": {
     "16": "icons/icon16.png",

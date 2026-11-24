@@ -18,10 +18,13 @@
   - 下載對應晶片的 `.dmg`，將 App 拖進「應用程式（Applications）」。
   - 首次開啟若出現未簽章提示：在「應用程式」中對 App **按右鍵 → 打開**，或於「系統設定 → 隱私權與安全性」點「仍要打開」一次即可。
 
-### 步驟 2：安裝 Chrome 擴充套件（多設定檔可各自安裝）
-1. 下載 Release 頁面的 `AI-Quota-Chrome-Extension-vX.Y.Z.zip` 並解壓縮。
-2. 在 Chrome 網址列輸入 `chrome://extensions`，開啟右上角「**開發人員模式**」。
+### 步驟 2：安裝 Chrome / Edge 擴充套件（多設定檔可各自安裝）
+1. 下載 Release 頁面的 `AI-Quota-Chrome-Extension-v1.0.0.zip` 並解壓縮。
+2. 在 Chrome 網址列輸入 `chrome://extensions`（若您是從 **Microsoft Edge** 安裝 Gemini 應用程式，請改開 `edge://extensions`），開啟「**開發人員模式**」。
 3. 點擊「**載入未封裝項目**」，選擇剛剛解壓縮出來的資料夾。
+
+> 💡 **使用 Claude Cowork 或 Gemini 桌面應用程式的朋友必看**：
+> 只要在安裝了擴充套件的 Chrome（或 Edge）中**登入過一次 `claude.ai` 與 `gemini.google.com`**，之後就算平常都在獨立桌面 App 或手機版聊天，擴充套件也會每 3–5 分鐘自動於背景同步您的額度與新增對話！
 
 ### 步驟 3：輸入本機配對碼（只需一次）
 1. 打開桌面小工具右上角 **`[⚙️]`** 設定頁，複製專屬的 8 碼配對碼（例如 `K8M2-94Q1`）。

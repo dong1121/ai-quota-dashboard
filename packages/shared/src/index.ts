@@ -4,3 +4,4 @@ export * from './identity.js';
 export * from './quota.js';
 export * from './rateLimitParser.js';
 export * from './analytics.js';
+export * from './geminiParser.js';

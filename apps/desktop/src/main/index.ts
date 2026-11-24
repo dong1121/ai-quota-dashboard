@@ -23,7 +23,7 @@ import { NotificationEngine } from './notifications/notificationEngine.js';
 import { UpdateManager } from './updater/updateManager.js';
 import { WindowManager, resolvePreloadPath } from './windowManager.js';
 
-const APP_VERSION = '0.3.4';
+const APP_VERSION = '1.0.0';
 
 // Required on Windows 10/11 so Electron native Toast notifications appear in Action Center
 if (process.platform === 'win32') {

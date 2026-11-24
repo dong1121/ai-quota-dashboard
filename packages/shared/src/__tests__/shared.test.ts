@@ -11,6 +11,7 @@ import {
   maskEmail,
   normalizeIdentityKey,
   parseApiRateLimit,
+  parseGeminiAppHtml,
 } from '../index.js';
 
 describe('@ai-quota/shared', () => {
@@ -128,5 +129,22 @@ describe('@ai-quota/shared', () => {
     expect(isWithinQuietHours(23, 23, 8)).toBe(true);
     expect(isWithinQuietHours(2, 23, 8)).toBe(true);
     expect(isWithinQuietHours(10, 23, 8)).toBe(false);
+  });
+
+  it('parses Gemini Wiz HTML for signed-in email and conversation IDs', () => {
+    const mockHtml = `
+      <script>window.WIZ_global_data = {"oPEP7c":"Friend.Pro@gmail.com","other":"x"};</script>
+      <div data-items='["c_1a2b3c4d5e6f7890","c_abcdef1234567890"]'>
+        <a href="/app/1a2b3c4d5e6f7890">dup</a>
+        <a href="/app/9988776655443322">new</a>
+      </div>
+    `;
+    const parsed = parseGeminiAppHtml(mockHtml);
+    expect(parsed.email).toBe('friend.pro@gmail.com');
+    expect(parsed.conversationIds).toEqual([
+      '1a2b3c4d5e6f7890',
+      'abcdef1234567890',
+      '9988776655443322',
+    ]);
   });
 });

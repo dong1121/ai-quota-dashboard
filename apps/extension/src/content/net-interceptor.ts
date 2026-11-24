@@ -1,9 +1,9 @@
 import { NET_EVENT_SOURCE, type MainWorldNetEvent } from '../shared/messages.js';
 
 /**
- * Runs in Chrome MV3 MAIN world at document_start.
- * Non-invasively observes window.fetch responses for AI API endpoints
- * (never blocks, alters, or exports cookies/passwords).
+ * Runs in Chrome/Edge MV3 MAIN world at document_start.
+ * Non-invasively observes both window.fetch AND XMLHttpRequest responses
+ * (Google Wiz / Gemini uses XMLHttpRequest for StreamGenerate RPCs!).
  */
 (() => {
   const GUARD_KEY = '__aiQuotaNetInterceptorInstalled';
@@ -13,6 +13,7 @@ import { NET_EVENT_SOURCE, type MainWorldNetEvent } from '../shared/messages.js'
 
   const originalFetch = window.fetch.bind(window);
   const host = window.location.hostname;
+  let lastGeminiPromptEmitMs = 0;
 
   function emit(event: Omit<MainWorldNetEvent, 'source' | 'timestamp'>): void {
     window.postMessage(
@@ -25,7 +26,27 @@ import { NET_EVENT_SOURCE, type MainWorldNetEvent } from '../shared/messages.js'
     );
   }
 
-  // On Gemini Web, expose signed-in email from Google's WIZ_global_data (language-agnostic)
+  function isGeminiGenerateUrl(url: string): boolean {
+    return (
+      url.includes('StreamGenerate') ||
+      url.includes('BardFrontendService') ||
+      url.includes('GenerateContent')
+    );
+  }
+
+  function emitGeminiPromptDebounced(url: string, status: number): void {
+    const now = Date.now();
+    if (now - lastGeminiPromptEmitMs < 2500) return;
+    lastGeminiPromptEmitMs = now;
+    emit({
+      provider: 'gemini',
+      kind: 'prompt',
+      httpStatus: status,
+      url,
+    });
+  }
+
+  // On Gemini Web / Chrome & Edge PWA, expose signed-in email from Google's WIZ_global_data
   if (host.includes('gemini.google.com')) {
     const checkWizEmail = () => {
       try {
@@ -51,6 +72,50 @@ import { NET_EVENT_SOURCE, type MainWorldNetEvent } from '../shared/messages.js'
       setTimeout(checkWizEmail, 1200);
       setTimeout(checkWizEmail, 3500);
     }
+
+    // Hook XMLHttpRequest for Google Closure XhrIo (used by Gemini StreamGenerate)
+    const origOpen = XMLHttpRequest.prototype.open;
+    const origSend = XMLHttpRequest.prototype.send;
+
+    XMLHttpRequest.prototype.open = function (
+      this: XMLHttpRequest & { __aiQuotaMethod?: string; __aiQuotaUrl?: string },
+      method: string,
+      url: string | URL,
+      ...rest: unknown[]
+    ) {
+      this.__aiQuotaMethod = String(method || 'GET').toUpperCase();
+      this.__aiQuotaUrl = typeof url === 'string' ? url : url.href;
+      return origOpen.apply(this, [method, url, ...rest] as Parameters<typeof origOpen>);
+    };
+
+    XMLHttpRequest.prototype.send = function (
+      this: XMLHttpRequest & { __aiQuotaMethod?: string; __aiQuotaUrl?: string },
+      body?: Document | XMLHttpRequestBodyInit | null,
+    ) {
+      const method = this.__aiQuotaMethod ?? 'GET';
+      const url = this.__aiQuotaUrl ?? '';
+      if (method === 'POST' && isGeminiGenerateUrl(url)) {
+        this.addEventListener('loadend', () => {
+          try {
+            if (this.status === 429) {
+              const retryAfter = this.getResponseHeader('retry-after');
+              emit({
+                provider: 'gemini',
+                kind: 'rate_limit',
+                httpStatus: 429,
+                url,
+                headers: retryAfter ? { 'retry-after': retryAfter } : undefined,
+              });
+            } else if (this.status >= 200 && this.status < 300) {
+              emitGeminiPromptDebounced(url, this.status);
+            }
+          } catch {
+            // never break host XHR
+          }
+        });
+      }
+      return origSend.call(this, body);
+    };
   }
 
   function extractHeaders(headers: Headers): Record<string, string> {
@@ -73,7 +138,7 @@ import { NET_EVENT_SOURCE, type MainWorldNetEvent } from '../shared/messages.js'
       const parsed = JSON.parse(body) as { model?: unknown };
       if (typeof parsed.model === 'string') return parsed.model;
     } catch {
-      // Not JSON (e.g. URL-encoded Gemini RPC payload)
+      // Not JSON
     }
     return null;
   }
@@ -150,15 +215,9 @@ import { NET_EVENT_SOURCE, type MainWorldNetEvent } from '../shared/messages.js'
         }
       }
 
-      // 2. Gemini Web (gemini.google.com)
+      // 2. Gemini Web / PWA (gemini.google.com)
       if (host.includes('gemini.google.com')) {
-        const isGenerateCall =
-          method === 'POST' &&
-          (url.includes('StreamGenerate') ||
-            url.includes('BardFrontendService') ||
-            url.includes('GenerateContent'));
-
-        if (isGenerateCall) {
+        if (method === 'POST' && isGeminiGenerateUrl(url)) {
           if (response.status === 429) {
             emit({
               provider: 'gemini',
@@ -168,12 +227,7 @@ import { NET_EVENT_SOURCE, type MainWorldNetEvent } from '../shared/messages.js'
               headers: extractHeaders(response.headers),
             });
           } else if (response.ok) {
-            emit({
-              provider: 'gemini',
-              kind: 'prompt',
-              httpStatus: response.status,
-              url,
-            });
+            emitGeminiPromptDebounced(url, response.status);
           }
         }
       }
