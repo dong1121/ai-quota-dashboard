@@ -2,7 +2,7 @@
 
 > **文件用途**：本規格書記錄專案的核心需求、架構設計、實際資料模型、各階段開發進度與維護發佈規範，供後續開發與版本迭代直接銜接。  
 > **建立日期**：2026-11-20  
-> **最後更新**：2026-11-24（**v1.1.0 正式版** · 新增桌面端內嵌擴充套件自動無感重載更新、Antigravity 桌面應用程式＋CLI 雙路徑通吃）  
+> **最後更新**：2026-11-25（**v1.1.0 正式版上線**；已補齊 MIT `LICENSE`；SignPath Foundation 免費開源簽章因專案初期能見度不足暫未核准，已先暫緩簽章並移除 `README.md` 申請中字樣）  
 > **目標平台**：Windows / macOS 桌面端 ＋ Google Chrome（多設定檔 Profile 環境）  
 > **GitHub 專案**：`dong1121/ai-quota-dashboard`（Public · 支援 GitHub Releases 自動更新與雙平台雲端打包）  
 > **隱私原則**：Local-First（全本機運作、不經第三方雲端伺服器、不儲存帳號密碼、設定備份不含本機配對碼）
@@ -254,9 +254,12 @@ CREATE TABLE notification_logs (
 - [x] **Antigravity 雙路徑監看（`v1.1.0`）**：同時監看 `~/.gemini/antigravity-cli`（CLI）與 `~/.gemini/antigravity`（桌面應用程式／IDE）。
 - [x] 完成 [README.md](README.md)（朋友端 3 分鐘安裝指南＋作者端 GitHub 上傳與發版手冊）。
 
-### Phase 4：未來可選擴充方向（視實際使用回饋決定）
+### Phase 4：正式簽章與未來可選擴充方向
+- [ ] **Windows 程式碼簽章（SignPath Foundation）— ⏸️ 暫緩**：
+  - [x] 已補齊 [LICENSE](LICENSE)（MIT）與 [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md) 並於 2026-11-25 送件。
+  - [x] 2026-11-25 收到 SignPath 回信：專案品質無虞，但因公開能見度（Stars／外部討論）尚屬初期故暫未核准，歡迎日後累積口碑後重申；已同步移除 [README.md](README.md) 與 [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md) 之 SignPath 申請中／提供簽章字樣。
+  - [ ] **未來若要重啟**：可選擇 (1) 推廣累積 GitHub Stars 與外部文章後重申 SignPath Foundation；或 (2) 透過免費個人開發者帳號以 MSIX 上架 Microsoft Store 免費代簽。
 - [ ] **Chrome Web Store「不公開（Unlisted）」上架**：讓朋友端 Chrome 擴充套件也能免手動解壓、全自動接收背景更新。
-- [ ] **Windows 程式碼簽章（Code Signing）整合**：評估申請開源免費簽章（如 SignPath.io，需加 MIT License）或微軟 Azure Trusted Signing，徹底消除 Windows 11 SmartScreen／Smart App Control 警告。
 - [ ] **開機自動啟動（Launch at Login）開關**：透過 Electron `app.setLoginItemSettings` 提供設定頁一鍵勾選開機常駐系統列。
 - [ ] **支援更多 AI 服務**：如 Perplexity、Cursor、Windsurf、GitHub Copilot 等額度探針。
 - [ ] **匯出每月統計報表圖片／CSV**：方便年度帳單回顧與記帳整理。
@@ -268,6 +271,8 @@ CREATE TABLE notification_logs (
 ```text
 1151120_AI額度儀表板/
 ├── .github/workflows/release.yml      # GitHub Actions 雙平台自動測試、打包與發佈流程
+├── LICENSE                            # MIT 開源授權（SignPath 簽章必備）
+├── CODE_SIGNING_POLICY.md             # SignPath Foundation 程式碼簽章與 Local-First 隱私權政策
 ├── package.json                       # Monorepo 根配置（v1.1.0）
 ├── README.md                          # 朋友端 3 分鐘安裝指南 ＋ 作者端 GitHub 上傳與發版步驟
 ├── start-dashboard.bat                # 本機快速啟動已編譯桌面看板（純 ASCII + CRLF）

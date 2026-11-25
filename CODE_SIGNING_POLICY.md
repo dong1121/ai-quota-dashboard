@@ -1,6 +1,6 @@
-# Code Signing Policy
+# Release Provenance & Code Signing Policy
 
-Free code signing provided by [SignPath.io](https://signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+> **Current Status**: Official release binaries for **AI Quota Dashboard** are currently distributed as **unsigned** open-source builds compiled exclusively on GitHub Actions. This document defines our build provenance, privacy commitments, and governance standards should digital code signing be adopted in the future.
 
 ## 1. Purpose & Scope
 This policy governs the digital code signing of official Windows release binaries for **AI Quota Dashboard** (`https://github.com/dong1121/ai-quota-dashboard`).
@@ -37,4 +37,4 @@ If any maintainer account, GitHub token, or SignPath API credential is suspected
 
 ---
 
-> **繁體中文摘要**：本專案所有正式版 Windows 安裝檔僅透過 GitHub Actions 官方雲端環境自公開原始碼建置並送交 SignPath Foundation 簽章；維護者帳號全程啟用雙重驗證（MFA）；本工具採純本機 Local-First 運作，絕不上傳任何帳號密碼、Cookie 或個人使用數據至雲端。
+> **繁體中文摘要**：本專案所有正式版安裝檔皆僅透過 GitHub Actions 官方雲端環境自公開原始碼建置（目前為未簽章開源發行版）；維護者帳號全程啟用雙重驗證（MFA）；本工具採純本機 Local-First 運作，絕不上傳任何帳號密碼、Cookie 或個人使用數據至雲端。

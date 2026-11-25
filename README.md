@@ -95,9 +95,9 @@ npm.cmd run package:win
 
 ---
 
-## 四、開源授權、隱私權與程式碼簽章（License, Privacy & Code Signing）
+## 四、開源授權與隱私權（License & Privacy）
 
 - **Open Source License**: Released under the [MIT License](LICENSE).
 - **Privacy Policy**: Strictly **Local-First**. This application stores all usage statistics locally on your device (`%APPDATA%/AIQuotaDashboard` / `~/Library/Application Support/AIQuotaDashboard`) and never collects, transmits, or sells user credentials, cookies, or personal usage data.
-- **Code Signing Policy**: Official Windows binaries follow our published [Code Signing Policy](CODE_SIGNING_POLICY.md). Free code signing provided by [SignPath.io](https://signpath.io/), certificate by [SignPath Foundation](https://signpath.org/) *(application in progress / enabled upon approval)*.
+- **Build Transparency**: All official release binaries are built directly from this repository's public source code via GitHub Actions (`.github/workflows/release.yml`). Windows and macOS releases are currently unsigned open-source builds.
 
