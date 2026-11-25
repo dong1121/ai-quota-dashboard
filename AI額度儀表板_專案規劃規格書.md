@@ -46,18 +46,19 @@
 
 ```mermaid
 flowchart LR
-    subgraph Chrome["Google Chrome（多設定檔多視窗 · MV3 v0.2.0）"]
-        P1["Profile 1\n(MAIN Fetch 攔截 + ISOLATED Bridge)"]
+    subgraph Chrome["Google Chrome / Microsoft Edge（多設定檔 · MV3 v1.1.0）"]
+        P1["Profile 1\n(MAIN Fetch+XHR 攔截 + 背景同步 + 自動重載)"]
         P2["Profile 2\n(Gemini 家庭號 B)"]
         P3["Profile N\n(自動探索其他帳號)"]
     end
 
     subgraph LocalOS["Windows / macOS 本機環境"]
-        AGY["Antigravity CLI\n(~/.gemini/antigravity-cli · 預設開)"]
+        AGY["Antigravity (CLI + 桌面應用程式)\n(~/.gemini/antigravity-cli & antigravity · 預設開)"]
         GCLI["Gemini CLI\n(~/.gemini · 預設關、設定頁可開)"]
-        subgraph App["桌面小工具 (Electron + React + TS · v0.3.0)"]
-            API["本機 HTTP Server\n127.0.0.1:17321 + X-Pairing-Token"]
-            WATCH["本機 CLI 雙監看器"]
+        subgraph App["桌面小工具 (Electron + React + TS · v1.1.0)"]
+            API["本機 HTTP Server\n127.0.0.1:17321 + X-Pairing-Token + X-Extension-Version"]
+            WATCH["本機 CLI / App 監看器"]
+            EXTSYNC["內嵌擴充套件同步\n%APPDATA%/AIQuotaDashboard/chrome-extension"]
             DB[("SQLite (sql.js WASM)\n%APPDATA%/AIQuotaDashboard/quota.db")]
             NOTIF["雙軌原生通知引擎\n(滿血復活 + 扣款前低用量體檢)"]
             UPD["自動更新引擎\n(electron-updater / GitHub Releases)"]
@@ -68,7 +69,8 @@ flowchart LR
     P1 -->|HTTP JSON + Token| API
     P2 -->|HTTP JSON + Token| API
     P3 -->|HTTP JSON + Token| API
-    AGY -->|增量 JSONL 監聽| WATCH
+    EXTSYNC -.->|重載最新版| Chrome
+    AGY -->|增量 JSONL / .pb 監聽| WATCH
     GCLI -.->|選用開關| WATCH
     API --> DB
     WATCH --> DB
@@ -79,7 +81,7 @@ flowchart LR
 ### 3.1 本機通訊與安全設計（已實作）
 * **純迴路介面**：僅監聽 `127.0.0.1:17321`，不對外網或區網開放。
 * **隨機配對碼（Pairing Token）**：首次啟動自動生成 8 碼隨機配對碼（如 `K8M2-94Q1`），以 `crypto.timingSafeEqual` 驗證，可於設定頁一鍵複製或重製。
-* **嚴格 CORS 隔離**：僅允許 `chrome-extension://` 與無 Origin 之本機請求，阻擋一般網站存取（回傳 `403`）。
+* **嚴格 CORS 隔離**：僅允許 `chrome-extension://`、`extension://`（Microsoft Edge）與無 Origin 之本機請求，阻擋一般網站存取（回傳 `403`）。
 * **零密碼接觸**：擴充套件僅利用瀏覽器原有登入狀態運作，不匯出任何密碼或 Cookie。
 
 ---
@@ -222,7 +224,7 @@ CREATE TABLE notification_logs (
 * **資料庫與檔案監看**：**`sql.js`（WASM SQLite）＋ `chokidar`**
 * **打包與自動更新**：**`electron-builder` ＋ `electron-updater` ＋ GitHub Actions / GitHub Releases**
 * **Chrome 擴充套件**：**Manifest V3 + TypeScript + Vite + esbuild**（MAIN World 攔截器 ＋ ISOLATED 橋接 ＋ Background Service Worker）
-* **自動化測試**：**Vitest**（目前 14 / 14 單元與整合測試全數通過）
+* **自動化測試**：**Vitest**（目前 16 / 16 單元與整合測試全數通過）
 
 ---
 
@@ -240,7 +242,7 @@ CREATE TABLE notification_logs (
 - [x] 手機版對話差量同步（Delta Sync）＋ 卡片懸停 `+1`／`觸頂`／`復原` 一鍵微調。
 - [x] 迷你看板與統計視窗各自獨立的字體大小（`rem` 85%–135%）與背景不透明度（濃淡滑桿）調整。
 
-### Phase 3：每月統計、跨平台與自動更新發佈 — ✅ 已完成（v1.0.0 正式版雙平台全綠上線）
+### Phase 3：每月統計、跨平台與自動更新發佈 — ✅ 已完成（v1.1.0 正式版雙平台全綠上線）
 - [x] 獨立寬版統計與訂閱 CP 值體檢視窗（4 KPI、月繳／年繳方案體檢、家庭群組彙總＋多帳號負載分佈、每日堆疊趨勢圖、24 小時高峰分佈圖）。
 - [x] 新安裝 7 天觀察保護期與 Claude 真實消耗率優先（`v0.3.3`）：依帳號建立日期計算實際已追蹤天數（`trackedDays < 7` 顯示 `🔵 觀察累積中` 避免月底剛安裝就誤報停訂），且 Claude 只要伺服器真實每週消耗率 `>= 30%` 即直接評為 `🟢 超值主力`。
 - [x] Gemini 獨立應用程式 / Edge PWA 全通路追蹤（`v1.0.0`）：補齊 `XMLHttpRequest` 攔截、背景每 5 分鐘 `gemini.google.com/app` 差量同步、DOM 提問氣泡備援與 `extension://`（Edge）CORS 支援。
@@ -270,12 +272,12 @@ CREATE TABLE notification_logs (
 ├── README.md                          # 朋友端 3 分鐘安裝指南 ＋ 作者端 GitHub 上傳與發版步驟
 ├── start-dashboard.bat                # 本機快速啟動已編譯桌面看板（純 ASCII + CRLF）
 ├── scripts/pack-extension-zip.mjs     # 打包 Chrome 擴充套件 ZIP（Windows 使用 tar.exe 避開中括號路徑問題）
-├── packages/shared/                   # 共用型別、常數、Email 歸戶、限流解析、月繳／年繳分析與 7 天觀察期邏輯（7 tests）
+├── packages/shared/                   # 共用型別、常數、Email 歸戶、限流與 Gemini HTML 解析、月繳／年繳分析（8 tests）
 ├── apps/desktop/
-│   ├── electron-builder.yml           # Windows (NSIS/Portable) ＋ macOS (DMG/ZIP) ＋ GitHub Publish 設定
+│   ├── electron-builder.yml           # Windows (NSIS/Portable) ＋ macOS (DMG/ZIP) ＋ extraResources 內嵌擴充套件 ＋ GitHub Publish
 │   ├── scripts/                       # build-electron.mjs / dev.mjs / start.mjs / generate-icons.mjs
 │   └── src/
-│       ├── main/                      # config / db (sql.js) / server / collectors / notifications / updater / windowManager（7 tests）
+│       ├── main/                      # config / db (sql.js) / server / collectors / notifications / updater / extensionSync / windowManager（8 tests）
 │       ├── preload/index.ts           # contextBridge 安全 IPC 介面
 │       └── renderer/                  # App（迷你看板）、AnalyticsWindow（獨立統計頁）、SettingsPanel、AccountCard、QuotaBar
 └── apps/extension/                    # Chrome / Edge MV3 擴充套件（v1.1.0），同步內嵌至桌面安裝檔 extraResources/chrome-extension
@@ -286,15 +288,16 @@ CREATE TABLE notification_logs (
 #### 1. Monorepo ＋ `electron-builder` 關鍵定案（已驗證，切勿任意改動）
 * **`electronVersion` 鎖定**：`apps/desktop/electron-builder.yml` 必須維持 `electronVersion: "35.7.5"`（因 npm workspaces 會將 `electron` 提升至根目錄 `node_modules`，不鎖定會導致打包找不到版本）。
 * **依賴切分原則**：`apps/desktop/package.json` 的 `dependencies` **僅放置 Electron 主進程執行期外部依賴**（`chokidar`、`electron-updater`、`sql.js`）；已由 `esbuild`／`Vite` 打包進 `dist/` 的 `@ai-quota/shared`、`react`、`react-dom`、`lucide-react` 維持在 `devDependencies`，避免 npm workspace symlink 指向 `apps/desktop` 外部導致 `app.asar` 報錯。
+* **內嵌擴充套件打包順序**：`apps/desktop/electron-builder.yml` 透過 `extraResources` 打包 `../extension/dist` → `chrome-extension`，因此打包桌面端前必須先完成 `npm run build`（確保 `apps/extension/dist` 已生成）。
 * **雙平台零撞車與檔名無空白規則**：`.github/workflows/release.yml` 中 `windows-latest` 與 `macos-latest` 皆以 `--publish never` 各自打包並上傳 Artifact（僅收 `latest*.yml` 排除 `builder-debug.yml`），最後由 `publish-release` 統一 `gh release create` 原子發佈；所有目標（`nsis`、`portable`、`mac`）皆明確設定不含空白的 `artifactName`（如 `AI-Quota-Dashboard-Setup-${version}.${ext}`），確保 `latest.yml` 與 GitHub 上傳檔名 100% 一致不發生 404；macOS 維持 `CSC_IDENTITY_AUTO_DISCOVERY: false`、`mac.identity: null`、`mac.notarize: false`、`dmg.sign: false` 以免除付費憑證需求。
 * **變更依賴或版本號時**：務必同步更新 `package-lock.json`（執行 `npm.cmd install --package-lock-only`），否則雲端 `npm ci` 會因 lockfile 不同步而失敗。
 
 #### 2. Release 下載檔案對照（給自己與朋友選檔）
-* **Windows 正式安裝版（推薦，支援一鍵自動更新）**：`AI-Quota-Dashboard-Setup-x.y.z.exe`
+* **Windows 正式安裝版（推薦，支援一鍵自動更新＋內嵌擴充套件）**：`AI-Quota-Dashboard-Setup-x.y.z.exe`
 * **Windows 免安裝可攜版**：`AI-Quota-Dashboard-Portable-x.y.z-win-x64.exe`
 * **macOS Apple Silicon (M1–M4)**：`AI-Quota-Dashboard-x.y.z-mac-arm64.dmg`
 * **macOS Intel**：`AI-Quota-Dashboard-x.y.z-mac-x64.dmg`
-* **Chrome 擴充套件**：`AI-Quota-Chrome-Extension-vx.y.z.zip`
+* **Chrome / Edge 擴充套件獨立 ZIP（選用備用）**：`AI-Quota-Chrome-Extension-vx.y.z.zip`（`v1.1.0` 起已直接內嵌於桌面安裝檔，點桌面設定頁「📂 開啟內建擴充套件資料夾」載入一次即可永久自動無感更新，無須再手動下載 ZIP！）
 * **自動更新專用系統檔（請勿刪除、一般使用者無須點擊）**：`latest.yml`、`latest-mac.yml`、`*.blockmap`、`*-mac-*.zip`
 
 #### 3. Windows 11 未簽章 `.exe` 自動更新被擋排除步驟（朋友端一次設定）
@@ -307,5 +310,5 @@ CREATE TABLE notification_logs (
 
 #### 4. 跨電腦接力開發與日常操作
 * **本機環境注意**：若專案路徑含中括號 `[Gemini_CLI]`，PowerShell 需用 `Set-Location -LiteralPath "..."` 或改用 `cmd`；執行 npm 請用 `npm.cmd`，`.bat` 檔維持純 ASCII ＋ CRLF 格式。
-* **多台電腦接力開發（公司／家裡）**：家裡電腦請直接 `git clone https://github.com/dong1121/ai-quota-dashboard.git` 到**非 OneDrive 本機資料夾**（避免 OneDrive 鎖定 `.git` 與 `node_modules`）；每次開工前先 `git pull`，改完後同步更新 `package.json`、`apps/desktop/package.json`、`apps/desktop/src/main/index.ts`（`APP_VERSION`）與 `package-lock.json`，推送 `main` 與新標籤 `vX.Y.Z` 即可自動發佈新版。
-* **一鍵驗證指令**：`npm.cmd run build && npm.cmd run typecheck && npm.cmd test`（目前 14 / 14 全部通過）。
+* **多台電腦接力開發（公司／家裡）**：家裡電腦請直接 `git clone https://github.com/dong1121/ai-quota-dashboard.git` 到**非 OneDrive 本機資料夾**（避免 OneDrive 鎖定 `.git` 與 `node_modules`）；每次開工前先 `git pull`，改完後同步更新 `package.json`、`packages/shared/package.json`、`apps/desktop/package.json`、`apps/desktop/src/main/index.ts`（`APP_VERSION`）、`apps/extension/package.json`、`apps/extension/public/manifest.json` 與 `package-lock.json`，推送 `main` 與新標籤 `vX.Y.Z` 即可自動發佈新版。
+* **一鍵驗證指令**：`npm.cmd run build && npm.cmd run typecheck && npm.cmd test`（目前 16 / 16 全部通過）。

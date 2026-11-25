@@ -1,8 +1,9 @@
 # AI 多帳號額度儀表板（AI Quota Dashboard）
 
-> **Local-First · 全本機運作 · 零密碼接觸 · 跨 Windows / macOS ＋ Google Chrome 多設定檔**
+> **Local-First · 全本機運作 · 零密碼接觸 · 跨 Windows / macOS ＋ Google Chrome / Edge 多設定檔**  
+> **English Summary**: *AI Quota Dashboard* is an open-source, local-first desktop widget (Electron + React + TypeScript + WASM SQLite) and Manifest V3 browser extension for monitoring personal AI usage quotas across Claude, Gemini, ChatGPT, and Antigravity CLI/App. All data stays strictly on the user's own device with zero cloud servers and zero telemetry. Licensed under the [MIT License](LICENSE).
 
-整合 **Claude（真實 5h／每週額度）**、**Gemini（多帳號網頁版 ＋ Antigravity CLI ＋ 選用 Gemini CLI）** 與 **ChatGPT Plus（模型分類計數＋限流校準）** 的輕量桌面看板，附帶 **獨立寬版統計與月繳／年繳 CP 值體檢視窗** 及 **滿血復活＋低用量停訂提醒**。
+整合 **Claude（真實 5h／每週額度）**、**Gemini（多帳號網頁版 ＋ Antigravity CLI/App ＋ 選用 Gemini CLI）** 與 **ChatGPT Plus（模型分類計數＋限流校準）** 的輕量桌面看板，附帶 **獨立寬版統計與月繳／年繳 CP 值體檢視窗** 及 **滿血復活＋低用量停訂提醒**。
 
 ---
 
@@ -91,3 +92,12 @@ npm.cmd test
 npm.cmd run pack:extension
 npm.cmd run package:win
 ```
+
+---
+
+## 四、開源授權、隱私權與程式碼簽章（License, Privacy & Code Signing）
+
+- **Open Source License**: Released under the [MIT License](LICENSE).
+- **Privacy Policy**: Strictly **Local-First**. This application stores all usage statistics locally on your device (`%APPDATA%/AIQuotaDashboard` / `~/Library/Application Support/AIQuotaDashboard`) and never collects, transmits, or sells user credentials, cookies, or personal usage data.
+- **Code Signing Policy**: Official Windows binaries follow our published [Code Signing Policy](CODE_SIGNING_POLICY.md). Free code signing provided by [SignPath.io](https://signpath.io/), certificate by [SignPath Foundation](https://signpath.org/) *(application in progress / enabled upon approval)*.
+
